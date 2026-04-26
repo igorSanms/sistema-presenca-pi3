@@ -38,8 +38,8 @@ cd backend
 dotnet run
 ```
 
-*A API estará disponível localmente (geralmente em http://localhost:5000 ou https://localhost:5001).*
-> 💡 Acesse a URL da API com /swagger no final (ex: http://localhost:5000/swagger) para visualizar a interface da API.
+*A API estará disponível localmente (geralmente em http://localhost:5249 ou https://localhost:5000).*
+> 💡 Acesse a URL da API com /swagger no final (ex: http://localhost:5249/swagger) para visualizar a interface da API.
 
 ### 4. Rodando o Front-end (React)
 Abra outro terminal na raiz do projeto:
