@@ -48,7 +48,7 @@ dotnet run
 Abra outro terminal na raiz do projeto:
 
 ```bash
-cd frontend
+cd frontend/sistema-presenca
 npm install
 npm run dev
 ```
