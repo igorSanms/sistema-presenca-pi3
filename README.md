@@ -10,8 +10,9 @@
 ### Pré-requisitos
 1. [Node.js](https://nodejs.org/) (versão LTS recomendada)
 2. [.NET 10 SDK](https://dotnet.microsoft.com/download)
-3. [Docker Desktop](https://www.docker.com/) 
-4. Git
+3. [Docker](https://www.docker.com/)
+4. [Bruno](https://www.usebruno.com/) (Para testar e interagir com a API)
+5. Git
 
 ### 1. Clonando o Repositório
 Rode no terminal
@@ -40,6 +41,8 @@ dotnet run
 
 *A API estará disponível localmente (geralmente em http://localhost:5249 ou https://localhost:5000).*
 > 💡 Acesse a URL da API com /swagger no final (ex: http://localhost:5249/swagger) para visualizar a interface da API.
+> 
+> 🐶 Testes com Bruno: Nosso projeto utiliza o Bruno como cliente de API (alternativa ao Postman/Insomnia). Para realizar requisições, abra o aplicativo do Bruno, clique em "Open Collection" e selecione a pasta da collection do projeto disponível no repositório.
 
 ### 4. Rodando o Front-end (React)
 Abra outro terminal na raiz do projeto:
