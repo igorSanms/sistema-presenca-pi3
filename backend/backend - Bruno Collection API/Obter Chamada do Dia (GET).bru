@@ -1,0 +1,15 @@
+meta {
+  name: Obter Chamada do Dia (GET)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/frequencia/2026-06-04
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}

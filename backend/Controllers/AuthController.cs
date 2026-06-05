@@ -31,14 +31,32 @@ namespace backend.Controllers
                 return BadRequest(new { Message = "E-mail já está em uso." });
             }
 
-            var usuario = new Usuario
+            Usuario usuario;
+
+            if (request.Perfil == backend.Models.Enums.Perfil.Professor)
             {
-                Id = Guid.NewGuid(),
-                Nome = request.Nome,
-                Email = request.Email,
-                SenhaHash = BCrypt.Net.BCrypt.HashPassword(request.Senha),
-                Perfil = request.Perfil
-            };
+                usuario = new Professor
+                {
+                    Id = Guid.NewGuid(),
+                    Nome = request.Nome,
+                    Email = request.Email,
+                    SenhaHash = BCrypt.Net.BCrypt.HashPassword(request.Senha),
+                    Perfil = request.Perfil,
+                    Telefone = request.Telefone,
+                    AreaAtuacao = request.AreaAtuacao
+                };
+            }
+            else
+            {
+                usuario = new Usuario
+                {
+                    Id = Guid.NewGuid(),
+                    Nome = request.Nome,
+                    Email = request.Email,
+                    SenhaHash = BCrypt.Net.BCrypt.HashPassword(request.Senha),
+                    Perfil = request.Perfil
+                };
+            }
 
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();

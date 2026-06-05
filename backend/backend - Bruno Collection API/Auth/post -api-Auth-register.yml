@@ -12,17 +12,17 @@ http:
     type: json
     data: |-
       {
-        "nome": "",
-        "email": "",
-        "senha": "",
-        "perfil": "Coordenacao"
+        "nome": "Bruno Coordenador",
+        "email": "coordenacao@curso.com",
+        "senha": "SenhaForte123!",
+        "perfil": "Coordenacao" 
       }
   auth: inherit
 
 runtime:
   variables:
     - name: baseUrl
-      value: ""
+      value: http://localhost:5249
 
 settings:
   encodeUrl: true

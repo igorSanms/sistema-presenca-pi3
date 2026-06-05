@@ -8,6 +8,9 @@ info:
 http:
   method: GET
   url: "{{baseUrl}}/api/Alunos"
+  body:
+    type: json
+    data: ""
   auth:
     type: bearer
     token: "{{jwt_token}}"
@@ -15,7 +18,7 @@ http:
 runtime:
   variables:
     - name: baseUrl
-      value: ""
+      value: http://localhost:5249
 
 settings:
   encodeUrl: true

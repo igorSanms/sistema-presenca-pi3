@@ -1,0 +1,30 @@
+info:
+  name: Realizar Chamada
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/frequencia"
+  body:
+    type: json
+    data: |-
+      {
+        "data": "2026-06-04",
+        "alunos": [
+          {
+            "alunoId": "f70d7088-15ac-4684-9354-55271b01cd12",
+            "status": "1",
+            "observacao": "Chegou atrasado"
+          }
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

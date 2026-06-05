@@ -11,5 +11,7 @@ namespace backend.Models
         public int Presencas { get; set; }
         public int FaltasReais { get; set; }
         public int FaltasJustificadas { get; set; }
+
+        public ICollection<RegistroFrequencia> Registros { get; set; } = new List<RegistroFrequencia>();
     }
 }
