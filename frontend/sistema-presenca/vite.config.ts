@@ -8,4 +8,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // NOVA CONFIGURAÇÃO DE SERVIDOR
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5249', // A porta do seu backend C#
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })
