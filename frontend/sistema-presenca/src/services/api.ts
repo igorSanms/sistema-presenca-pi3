@@ -1,24 +1,31 @@
 import axios from 'axios';
 
-// Cria uma instância do Axios com configurações base
 export const api = axios.create({
-  // Puxa a URL base do arquivo .env.local
-  baseURL: import.meta.env.VITE_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL, // Usa a nossa variável de ambiente
 });
 
-// Interceptor de Resposta (Opcional, mas recomendado)
-// Aqui podemos interceptar erros globais, como um token expirado
+// Interceptor: Roda automaticamente ANTES de toda requisição que o sistema fizer
+api.interceptors.request.use((config) => {
+  // Vai no armazenamento do navegador e tenta buscar o token salvo
+  const token = localStorage.getItem('@SistemaPresenca:token');
+
+  // Se achar o token, injeta no cabeçalho "Authorization" com a palavra "Bearer "
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+// Interceptor de Resposta (Se o C# disser que o token expirou)
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Se o erro for 401 (Não autorizado), poderemos forçar o logout do usuário aqui depois
-    if (error.response && error.response.status === 401) {
-      console.error('Sessão expirada ou não autorizada.');
+    // Se der erro 401, você pode opcionalmente deslogar o usuário ou apenas rejeitar o erro
+    if (error.response?.status === 401) {
+      console.error("Sessão expirada ou não autorizada.");
     }
     return Promise.reject(error);
   }

@@ -4,9 +4,14 @@ import logoImg from '../assets/logo.jpg';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { authService } from '../services/authService';
+import { useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 
 export function Login() {
   const navigate = useNavigate();
+
+  // Puxando a função signIn do nosso contexto
+  const { signIn } = useContext(AuthContext);
   
   // Estados para guardar o que o usuário digita
   const [email, setEmail] = useState('');
@@ -34,6 +39,12 @@ export function Login() {
         Email: email, 
         Senha: senha 
       });
+
+      // Chamamos o contexto para salvar a sessão globalmente!
+      signIn(resposta.token, resposta.perfil);
+
+      // Redirecionamos para a tela interna (que criaremos em seguida)
+      navigate('/painel');
 
       // Sucesso! Vamos imprimir no console para ver o que o backend nos devolveu (ex: Token)
       console.log('Retorno da API:', resposta);
