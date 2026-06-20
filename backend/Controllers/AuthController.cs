@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -79,6 +80,23 @@ namespace backend.Controllers
             return Ok(new { Token = token, Perfil = usuario.Perfil.ToString() });
         }
 
+        [Authorize]
+        [HttpGet("professores")]
+        public async Task<IActionResult> GetProfessores()
+        {
+            var professores = await _context.Professores
+                .Select(p => new ProfessorSelecaoDTO
+                {
+                    Id = p.Id,
+                    Nome = p.Nome,
+                    Email = p.Email,
+                    AreaAtuacao = string.IsNullOrEmpty(p.AreaAtuacao) ? "Não informada" : p.AreaAtuacao
+                })
+                .ToListAsync();
+
+            return Ok(professores);
+        }
+
         private string GenerateJwtToken(Usuario usuario)
         {
             var keyConfig = _configuration["Jwt:Key"];
@@ -94,6 +112,7 @@ namespace backend.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, usuario.Email),
+                new Claim(ClaimTypes.Name, usuario.Nome),
                 new Claim("perfil", usuario.Perfil.ToString()), // Custom claim para Perfil
                 new Claim(ClaimTypes.Role, usuario.Perfil.ToString()) // Usando o padrao nativo da Microsoft
             };

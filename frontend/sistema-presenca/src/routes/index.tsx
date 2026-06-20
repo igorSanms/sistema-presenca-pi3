@@ -14,6 +14,8 @@ import { Alunos } from '../pages/alunos/Alunos';
 import { NovoAluno } from '../pages/alunos/NovoAluno';
 import { EditarAluno } from '../pages/alunos/EditarAluno';
 import { AlunoDisciplinas } from '../pages/alunos/AlunoDisciplinas';
+import { Professores } from '../pages/Professores';
+import { NovoProfessor } from '../pages/NovoProfessor';
 
 export function AppRoutes() {
   return (
@@ -39,6 +41,8 @@ export function AppRoutes() {
           <Route path="/alunos/novo" element={<NovoAluno />} />
           <Route path="/alunos/editar/:id" element={<EditarAluno />} />
           <Route path="/alunos/:id/disciplinas" element={<AlunoDisciplinas />} />
+          <Route path="/professores" element={<Professores />} />
+          <Route path="/professores/novo" element={<NovoProfessor />} />
         </Route>
         </Route>
       </Routes>

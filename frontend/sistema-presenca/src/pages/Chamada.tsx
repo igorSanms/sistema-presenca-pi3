@@ -1,49 +1,96 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '../components/Button';
+import { api } from '../services/api';
 
-// Lista de alunos mockada baseada no seu print
-const alunosIniciais = [
-  { id: 'ALU001', nome: 'Carlos Oliveira', disciplinas: 'Design UX/UI Fundamentos, Desenvolvimento Web Completo', ausente: false, justificativa: false, observacao: '' },
-  { id: 'ALU002', nome: 'Fernanda Lima', disciplinas: 'Desenvolvimento Web Completo', ausente: false, justificativa: false, observacao: '' },
-  { id: 'ALU004', nome: 'Juliana Costa', disciplinas: 'Design UX/UI Fundamentos', ausente: false, justificativa: false, observacao: '' },
-  { id: 'ALU003', nome: 'Roberto Santos', disciplinas: 'Desenvolvimento Web Completo', ausente: false, justificativa: false, observacao: '' },
-];
+// Interface que reflete o retorno e envio para a API
+interface AlunoChamada {
+  alunoId: string;
+  nome: string;
+  status: 0 | 1 | 2 | null;
+  observacao: string;
+}
 
 export function Chamada() {
   const navigate = useNavigate();
   // Pega o "dia" da URL (ex: /chamada/segunda)
   const { dia } = useParams();
   
-  const [dataAula, setDataAula] = useState('2026-06-18');
-  const [alunos, setAlunos] = useState(alunosIniciais);
+  // Estado dataAula inicializado com a data de hoje YYYY-MM-DD
+  const hoje = new Date().toISOString().split('T')[0];
+  const [dataAula, setDataAula] = useState(hoje);
+  const [alunos, setAlunos] = useState<AlunoChamada[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  // Lógica para alternar os checkboxes e evitar que o aluno seja "Ausente" e "Justificado" ao mesmo tempo
+  // Busca de Dados (GET)
+  useEffect(() => {
+    async function loadFrequencia() {
+      try {
+        const response = await api.get(`/Frequencia/${dataAula}`);
+        setAlunos(response.data);
+      } catch (error) {
+        console.error('Erro ao buscar chamada:', error);
+      }
+    }
+    
+    if (dataAula) {
+      loadFrequencia();
+    }
+  }, [dataAula]);
+
+  // Lógica para alternar os checkboxes convertendo para o status da API
   const toggleStatus = (id: string, campo: 'ausente' | 'justificativa') => {
     setAlunos(alunos.map(aluno => {
-      if (aluno.id === id) {
-        const novoValor = !aluno[campo];
-        return { 
-          ...aluno, 
-          [campo]: novoValor,
-          // Se marcou ausente, desmarca justificativa, e vice-versa
-          ...(campo === 'ausente' && novoValor ? { justificativa: false } : {}),
-          ...(campo === 'justificativa' && novoValor ? { ausente: false } : {})
-        };
+      if (aluno.alunoId === id) {
+        if (campo === 'ausente') {
+          // Se já era falta (1), anula. Se não, vira falta (1)
+          return { ...aluno, status: aluno.status === 1 ? null : 1 };
+        } else if (campo === 'justificativa') {
+          // Se já era justificada (2), anula. Se não, vira justificada (2)
+          return { ...aluno, status: aluno.status === 2 ? null : 2 };
+        }
       }
       return aluno;
     }));
   };
 
   const handleObsChange = (id: string, obs: string) => {
-    setAlunos(alunos.map(aluno => aluno.id === id ? { ...aluno, observacao: obs } : aluno));
+    setAlunos(alunos.map(aluno => aluno.alunoId === id ? { ...aluno, observacao: obs } : aluno));
+  };
+
+  // Salvamento (POST)
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      
+      const payload = {
+        data: dataAula,
+        // Mapeando apenas os alunos que tiveram o status definido
+        alunos: alunos
+          .filter(a => a.status !== null)
+          .map(a => ({
+            alunoId: a.alunoId,
+            status: a.status,
+            observacao: a.observacao || ''
+          }))
+      };
+
+      await api.post('/Frequencia', payload);
+      alert('Chamada salva com sucesso!');
+      navigate('/painel');
+    } catch (error) {
+      console.error('Erro ao salvar chamada:', error);
+      alert('Erro ao salvar chamada. Verifique o console.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Matemática dinâmica para o placar no topo
   const total = alunos.length;
-  const ausentes = alunos.filter(a => a.ausente).length;
-  const justificados = alunos.filter(a => a.justificativa).length;
+  const ausentes = alunos.filter(a => a.status === 1).length;
+  const justificados = alunos.filter(a => a.status === 2).length;
   const presentes = total - ausentes - justificados;
 
   return (
@@ -100,17 +147,19 @@ export function Chamada() {
             </thead>
             <tbody className="text-sm text-gray-800">
               {alunos.map((aluno) => (
-                <tr key={aluno.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-4 px-4 font-medium">{aluno.id}</td>
+                <tr key={aluno.alunoId} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-4 px-4 font-medium">
+                    {aluno.alunoId ? aluno.alunoId.substring(0, 8).toUpperCase() : ''}
+                  </td>
                   <td className="py-4 px-4 font-bold">{aluno.nome}</td>
-                  <td className="py-4 px-4 text-gray-500">{aluno.disciplinas}</td>
+                  <td className="py-4 px-4 text-gray-500">-</td>
                   
                   {/* Checkbox Ausente */}
                   <td className="py-4 px-4 text-center">
                     <input 
                       type="checkbox" 
-                      checked={aluno.ausente} 
-                      onChange={() => toggleStatus(aluno.id, 'ausente')}
+                      checked={aluno.status === 1} 
+                      onChange={() => toggleStatus(aluno.alunoId, 'ausente')}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
                     />
                   </td>
@@ -119,17 +168,17 @@ export function Chamada() {
                   <td className="py-4 px-4 text-center">
                     <input 
                       type="checkbox" 
-                      checked={aluno.justificativa} 
-                      onChange={() => toggleStatus(aluno.id, 'justificativa')}
+                      checked={aluno.status === 2} 
+                      onChange={() => toggleStatus(aluno.alunoId, 'justificativa')}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
                     />
                   </td>
 
                   {/* Badge Dinâmica de Status */}
                   <td className="py-4 px-4 text-center">
-                    {aluno.ausente ? (
+                    {aluno.status === 1 ? (
                       <span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-1 rounded-full">Ausente</span>
-                    ) : aluno.justificativa ? (
+                    ) : aluno.status === 2 ? (
                       <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-full">Justificado</span>
                     ) : (
                       <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded-full">Presente</span>
@@ -141,8 +190,8 @@ export function Chamada() {
                     <input 
                       type="text" 
                       placeholder="Adicionar observação..." 
-                      value={aluno.observacao}
-                      onChange={(e) => handleObsChange(aluno.id, e.target.value)}
+                      value={aluno.observacao || ''}
+                      onChange={(e) => handleObsChange(aluno.alunoId, e.target.value)}
                       className="w-full bg-gray-100 border-transparent focus:bg-white focus:border-gray-300 focus:ring-0 rounded-md px-3 py-2 text-xs"
                     />
                   </td>
@@ -153,8 +202,8 @@ export function Chamada() {
         </div>
 
         <div className="flex justify-end mt-8">
-          <Button variant="secondary" className="bg-[#0A0F1C] hover:bg-gray-800 text-white py-2.5 px-6 flex items-center justify-center rounded-md w-auto" onClick={() => navigate('/painel')}>
-            <Save className="w-4 h-4 mr-2" /> Salvar Chamada
+          <Button variant="secondary" className="bg-[#0A0F1C] hover:bg-gray-800 text-white py-2.5 px-6 flex items-center justify-center rounded-md w-auto" onClick={handleSave} disabled={loading}>
+            <Save className="w-4 h-4 mr-2" /> {loading ? 'Salvando...' : 'Salvar Chamada'}
           </Button>
         </div>
       </div>

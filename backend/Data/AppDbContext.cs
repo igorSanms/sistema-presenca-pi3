@@ -14,6 +14,7 @@ namespace backend.Data
         public DbSet<Professor> Professores { get; set; }
         public DbSet<Aluno> Alunos { get; set; }
         public DbSet<RegistroFrequencia> RegistrosFrequencia { get; set; }
+        public DbSet<Disciplina> Disciplinas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -74,6 +75,18 @@ namespace backend.Data
                       .WithMany(a => a.Registros)
                       .HasForeignKey(e => e.AlunoId)
                       .OnDelete(DeleteBehavior.Cascade); // Regra de exclusão em cascata
+            });
+
+            // Mapping for Disciplina
+            modelBuilder.Entity<Disciplina>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Nome).IsRequired().HasMaxLength(200);
+
+                entity.HasOne(e => e.Professor)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProfessorId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

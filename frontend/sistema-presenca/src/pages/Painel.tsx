@@ -1,10 +1,59 @@
+import { useState, useEffect } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { Button } from '../components/Button';
 import { DiaSemana } from '../components/DiaSemana';
 import { AulaCard } from '../components/AulaCard';
 import { Link } from 'react-router-dom';
+import { api } from '../services/api';
+
+interface DisciplinaResponse {
+  id: string;
+  nome: string;
+  professorId: string;
+  professorNome: string;
+  horarios: string;
+}
 
 export function Painel() {
+  const [disciplinas, setDisciplinas] = useState<DisciplinaResponse[]>([]);
+
+  useEffect(() => {
+    async function loadDisciplinas() {
+      try {
+        const response = await api.get('/Disciplinas');
+        setDisciplinas(response.data);
+      } catch (error) {
+        console.error('Erro ao buscar disciplinas:', error);
+      }
+    }
+    loadDisciplinas();
+  }, []);
+
+  const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+
+  const getAulasDoDia = (dia: string) => {
+    const aulas: any[] = [];
+    disciplinas.forEach(d => {
+      if (!d.horarios) return;
+      
+      try {
+        const parsed = JSON.parse(d.horarios) as string[];
+        parsed.forEach(hStr => {
+          if (hStr.startsWith(dia)) {
+            const horario = hStr.replace(dia, '').trim();
+            aulas.push({ ...d, horarioRender: horario });
+          }
+        });
+      } catch {
+        // Fallback caso não seja um JSON válido
+        if (d.horarios.includes(dia)) {
+          aulas.push({ ...d, horarioRender: d.horarios });
+        }
+      }
+    });
+    return aulas;
+  };
+
   return (
     <div className="flex flex-col gap-6">
       
@@ -47,77 +96,28 @@ export function Painel() {
         </select>
       </div>
 
-      <p className="text-sm text-gray-500">7 disciplinas encontradas</p>
+      <p className="text-sm text-gray-500">{disciplinas.length} disciplinas encontradas</p>
 
       {/* Grade de Aulas (CSS Grid Responsivo) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
         
-        {/* Exemplo: Segunda-feira com disciplinas */}
-        <DiaSemana dia="Segunda" quantidadeAulas={2}>
-          <AulaCard 
-            disciplina="Design UX/UI Fundamentos"
-            nivel="Iniciante"
-            horario="10:00 - 12:00"
-            professor="Prof. Carlos Santos"
-            categoria="Design"
-          />
-          <AulaCard 
-            disciplina="Desenvolvimento Web Completo"
-            nivel="Intermediário"
-            horario="19:00 - 21:00"
-            professor="Prof. Ana Silva"
-            categoria="Programação"
-          />
-        </DiaSemana>
-
-        {/* Exemplo: Terça-feira (Vazia) */}
-        <DiaSemana dia="Terça" quantidadeAulas={0} />
-
-        {/* Exemplo: Quarta-feira (Vazia) */}
-        <DiaSemana dia="Quarta" quantidadeAulas={0} />
-
-        {/* Exemplo: Quinta-feira com disciplina */}
-        <DiaSemana dia="Quinta" quantidadeAulas={1}>
-          <AulaCard 
-            disciplina="Python para Data Science"
-            nivel="Avançado"
-            horario="14:00 - 16:00"
-            professor="Prof. Ana Silva"
-            categoria="Data Science"
-          />
-        </DiaSemana>
-
-        {/* Exemplo: Sexta-feira */}
-        <DiaSemana dia="Sexta" quantidadeAulas={1}>
-          <AulaCard 
-            disciplina="Design UX/UI Fundamentos"
-            nivel="Iniciante"
-            horario="10:00 - 12:00"
-            professor="Prof. Carlos Santos"
-            categoria="Design"
-          />
-        </DiaSemana>
-
-        {/* Exemplo: Sábado */}
-        <DiaSemana dia="Sábado" quantidadeAulas={2}>
-          <AulaCard 
-            disciplina="Yoga para Iniciantes"
-            nivel="Iniciante"
-            horario="07:00 - 08:30"
-            professor="Prof. Carlos Santos"
-            categoria="Bem-estar"
-          />
-          <AulaCard 
-            disciplina="Fotografia Profissional"
-            nivel="Intermediário"
-            horario="09:00 - 12:00"
-            professor="Prof. Carlos Santos"
-            categoria="Arte"
-          />
-        </DiaSemana>
-
-        {/* Exemplo: Domingo (Vazio) */}
-        <DiaSemana dia="Domingo" quantidadeAulas={0} />
+        {diasSemana.map((dia) => {
+          const aulasDoDia = getAulasDoDia(dia);
+          return (
+            <DiaSemana key={dia} dia={dia} quantidadeAulas={aulasDoDia.length}>
+              {aulasDoDia.map((aula, index) => (
+                <AulaCard 
+                  key={`${aula.id}-${index}`}
+                  disciplina={aula.nome}
+                  nivel="Geral"
+                  horario={aula.horarioRender}
+                  professor={aula.professorNome}
+                  categoria="Disciplina"
+                />
+              ))}
+            </DiaSemana>
+          );
+        })}
 
       </div>
     </div>

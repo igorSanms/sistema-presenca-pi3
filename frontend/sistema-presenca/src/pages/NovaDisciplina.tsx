@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Plus, Save } from 'lucide-react';
 import { Button } from '../components/Button';
+import { api } from '../services/api';
 
 // Tipagem para os horários dinâmicos
 interface Horario {
@@ -27,9 +28,25 @@ export function NovaDisciplina() {
 
   // Estado dos horários (começa vazio)
   const [horarios, setHorarios] = useState<Horario[]>([]);
+
+  // Estado dos professores
+  const [professores, setProfessores] = useState<{id: string, nome: string}[]>([]);
   
   // Estado para controlar as mensagens de erro
   const [erros, setErros] = useState<Record<string, string>>({});
+
+  // Buscar professores na montagem
+  useEffect(() => {
+    async function loadProfessores() {
+      try {
+        const { data } = await api.get('/Auth/professores');
+        setProfessores(data);
+      } catch (error) {
+        console.error('Erro ao carregar professores:', error);
+      }
+    }
+    loadProfessores();
+  }, []);
 
   // Atualiza os campos de texto normais
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -57,7 +74,7 @@ export function NovaDisciplina() {
   };
 
   // Função de salvar com validação visual
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const novosErros: Record<string, string> = {};
 
@@ -73,10 +90,24 @@ export function NovaDisciplina() {
       return; // Interrompe o salvamento se houver erros
     }
 
-    // Se passou na validação, aqui futuramente chamaremos a API (Etapa 4)
-    console.log('Dados prontos para salvar:', { ...formData, horarios });
-    alert('Disciplina pronta para ser cadastrada no backend!');
-    navigate('/painel');
+    try {
+      const horariosFormatados = horarios.length > 0 
+        ? JSON.stringify(horarios.map(h => `${h.dia} ${h.inicio}-${h.termino}`)) 
+        : '';
+
+      const payload = {
+        nome: formData.titulo,
+        professorId: formData.professor,
+        horarios: horariosFormatados
+      };
+
+      await api.post('/Disciplinas', payload);
+      alert('Disciplina cadastrada com sucesso!');
+      navigate('/painel');
+    } catch (error) {
+      console.error('Erro ao salvar disciplina:', error);
+      alert('Erro ao realizar o cadastro da disciplina. Verifique os dados e tente novamente.');
+    }
   };
 
   // Helper para o CSS dos inputs com erro
@@ -122,8 +153,9 @@ export function NovaDisciplina() {
               <label className="block text-sm font-bold text-gray-900 mb-2">Professor *</label>
               <select name="professor" value={formData.professor} onChange={handleChange} className={inputClass('professor')}>
                 <option value="">Selecione um professor</option>
-                <option value="1">Prof. Carlos Santos</option>
-                <option value="2">Prof. Ana Silva</option>
+                {professores.map(p => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
               </select>
               {erros.professor && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.professor}</span>}
             </div>

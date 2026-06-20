@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, // Usa a nossa variável de ambiente
+  baseURL: import.meta.env.VITE_API_URL || '/api', // Usa a nossa variável de ambiente ou o proxy local
 });
 
 // Interceptor: Roda automaticamente ANTES de toda requisição que o sistema fizer
