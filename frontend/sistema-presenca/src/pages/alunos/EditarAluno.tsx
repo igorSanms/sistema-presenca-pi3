@@ -71,7 +71,7 @@ export function EditarAluno() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto pb-10">
+    <div className="max-w-[1310px] mx-auto w-full pb-10">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-900 font-medium mb-6 hover:text-gray-600 transition-colors">
         <ArrowLeft className="w-5 h-5" /> Voltar
       </button>

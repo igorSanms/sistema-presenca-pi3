@@ -4,7 +4,7 @@ import { BookOpen, Users, UserSquare, BarChart, History, Bell, LogOut, Graduatio
 import { AuthContext } from '../contexts/AuthContext';
 
 export function Header() {
-  const { signOut, perfil } = useContext(AuthContext);
+  const { signOut, perfil, nome, email } = useContext(AuthContext); // <-- ADICIONEI NOME E EMAIL
   const navigate = useNavigate();
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
@@ -62,8 +62,8 @@ export function Header() {
         <div className="flex items-center gap-3 border-l border-gray-200 pl-4">
           <div className="text-right hidden sm:block">
             {/* Como não pegamos o nome do banco ainda, usamos o perfil */}
-            <p className="text-sm font-medium text-gray-900">{perfil === '0' ? 'Coordenação' : 'Administrador'}</p>
-            <p className="text-xs text-gray-500">admin@sistema.com</p>
+            <p className="text-sm font-bold text-gray-900 capitalize">{nome || 'Usuário'}</p>
+            <p className="text-xs text-gray-500">{email || 'usuario@sistema.com'}</p>
           </div>
           <button 
             onClick={handleLogout}

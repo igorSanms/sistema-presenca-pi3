@@ -43,7 +43,8 @@ export function Alunos() {
 
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 max-w-[1310px] mx-auto w-full">
+    
       
       {/* Cabeçalho */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -118,7 +119,7 @@ export function Alunos() {
                       <td className="py-4 px-4 text-gray-500">{aluno.email}</td>
                       <td className="py-4 px-4 text-gray-500">{aluno.telefone}</td>
                       <td className="py-4 px-4 text-center">
-                        <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">0 disciplinas</span>
+                        <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">0</span>
                       </td>
                       <td className="py-4 px-4 text-center text-green-600 font-medium">0</td>
                       <td className="py-4 px-4 text-center text-red-600 font-medium">0</td>
