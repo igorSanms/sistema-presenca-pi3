@@ -3,7 +3,9 @@
 ##  Stack 
 * **Backend:** C# ASP.NET Core (.NET 10) + Entity Framework Core
 * **Frontend:** React + TypeScript + Vite + Tailwind CSS
-* **Banco de dados:** PostgreSQL (via Docker)
+* **Banco de dados:** PostgreSQL
+* **Container:** Docker 
+
 
 ---
 
@@ -22,38 +24,34 @@ git clone https://github.com/alisonpSWE/sistema-presenca.git
 cd sistema-presenca
 ```
 
-### 2. Subindo o Banco de Dados (Docker)
-rode o comando abaixo na raiz do projeto:
+
+
+
+
+### 2. Rodando o Sistema Completo (Docker)
+Com o Docker aberto, rode o comando abaixo na raiz do projeto:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
+
 ```
 
-*O banco de dados estará rodando em segundo plano na porta 5432 com as credenciais configuradas no arquivo docker-compose.yml.*
+*Pronto! A infraestrutura inteira subirá automaticamente:*
 
-### 3. Rodando o Back-end (API C#)
-Abra um novo terminal na raiz do projeto:
+* **Banco de Dados:** Porta `5432`
+* **API (Backend):** http://localhost:5249/swagger
+* **Interface (Frontend):** http://localhost:5173
+
+> Já configurado com **Hot Reload**.
+
+Para parar o sistema, rode:
 
 ```bash
-cd backend
-dotnet run
+docker compose down
+
 ```
 
-*A API estará disponível localmente (geralmente em http://localhost:5249).*
-> 💡 Acesse a URL da API com /swagger no final (ex: http://localhost:5249/swagger) para visualizar a interface da API.
-> 
-> 🐶 Testes com Bruno: Nosso projeto utiliza o Bruno como cliente de API (alternativa ao Postman/Insomnia). Para realizar requisições, abra o aplicativo do Bruno, clique em "Open Collection" e selecione a pasta da collection do projeto disponível no /backend.
 
-### 4. Rodando o Front-end (React)
-Abra outro terminal na raiz do projeto:
-
-```bash
-cd frontend/sistema-presenca
-npm install
-npm run dev
-```
-
-*Acesse o link gerado no terminal para ver a interface.*
 
 ---
 
