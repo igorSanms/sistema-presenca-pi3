@@ -6,6 +6,9 @@ export interface AlunoData {
   nome: string;
   email: string;
   telefone: string;
+  presencas?: number;
+  faltasReais?: number;
+  faltasJustificadas?: number;
 }
 
 export const alunoService = {

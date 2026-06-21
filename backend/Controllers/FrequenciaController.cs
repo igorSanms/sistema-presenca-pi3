@@ -52,7 +52,6 @@ namespace backend.Controllers
                 {
                     if (registroExistente.Status != dto.Status)
                     {
-                        AtualizarContadores(aluno, registroExistente.Status, dto.Status);
                         registroExistente.Status = dto.Status;
                     }
                     registroExistente.Observacao = dto.Observacao;
@@ -67,8 +66,6 @@ namespace backend.Controllers
                         Observacao = dto.Observacao
                     };
                     await _context.RegistrosFrequencia.AddAsync(novoRegistro);
-                    
-                    AtualizarContadores(aluno, null, dto.Status);
                 }
             }
 
@@ -77,37 +74,7 @@ namespace backend.Controllers
             return Ok(new { Message = "Chamada registrada e contadores atualizados com sucesso." });
         }
 
-        private void AtualizarContadores(Aluno aluno, StatusPresenca? statusAntigo, StatusPresenca statusNovo)
-        {
-            if (statusAntigo.HasValue)
-            {
-                switch (statusAntigo.Value)
-                {
-                    case StatusPresenca.Presente:
-                        aluno.Presencas = Math.Max(0, aluno.Presencas - 1);
-                        break;
-                    case StatusPresenca.Falta:
-                        aluno.FaltasReais = Math.Max(0, aluno.FaltasReais - 1);
-                        break;
-                    case StatusPresenca.Justificada:
-                        aluno.FaltasJustificadas = Math.Max(0, aluno.FaltasJustificadas - 1);
-                        break;
-                }
-            }
 
-            switch (statusNovo)
-            {
-                case StatusPresenca.Presente:
-                    aluno.Presencas++;
-                    break;
-                case StatusPresenca.Falta:
-                    aluno.FaltasReais++;
-                    break;
-                case StatusPresenca.Justificada:
-                    aluno.FaltasJustificadas++;
-                    break;
-            }
-        }
 
         [HttpGet("{data}")]
         public async Task<IActionResult> ObterChamadaDoDia(DateOnly data)

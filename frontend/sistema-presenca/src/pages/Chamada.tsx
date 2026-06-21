@@ -28,7 +28,18 @@ export function Chamada() {
     async function loadFrequencia() {
       try {
         const response = await api.get(`/Frequencia/${dataAula}`);
-        setAlunos(response.data);
+        // Converte de Enum ou Número para 0, 1 ou 2 de forma segura
+        const alunosMapeados = response.data.map((aluno: any) => {
+          let statusConvertido = 0; // Padrão é Presença
+          if (aluno.status === 'Falta' || aluno.status === 1) statusConvertido = 1;
+          else if (aluno.status === 'Justificada' || aluno.status === 2) statusConvertido = 2;
+          
+          return {
+            ...aluno,
+            status: statusConvertido
+          };
+        });
+        setAlunos(alunosMapeados);
       } catch (error) {
         console.error('Erro ao buscar chamada:', error);
       }
@@ -39,24 +50,17 @@ export function Chamada() {
     }
   }, [dataAula]);
 
-  // Lógica para alternar os checkboxes convertendo para o status da API
-  const toggleStatus = (id: string, campo: 'ausente' | 'justificativa') => {
-    setAlunos(alunos.map(aluno => {
-      if (aluno.alunoId === id) {
-        if (campo === 'ausente') {
-          // Se já era falta (1), anula. Se não, vira falta (1)
-          return { ...aluno, status: aluno.status === 1 ? null : 1 };
-        } else if (campo === 'justificativa') {
-          // Se já era justificada (2), anula. Se não, vira justificada (2)
-          return { ...aluno, status: aluno.status === 2 ? null : 2 };
-        }
-      }
-      return aluno;
-    }));
+  // Lógica para atualizar o status de forma imutável e segura
+  const handleStatusChange = (id: string, novoStatus: 0 | 1 | 2 | null) => {
+    setAlunos(prev => prev.map(aluno => 
+      aluno.alunoId === id ? { ...aluno, status: novoStatus } : aluno
+    ));
   };
 
   const handleObsChange = (id: string, obs: string) => {
-    setAlunos(alunos.map(aluno => aluno.alunoId === id ? { ...aluno, observacao: obs } : aluno));
+    setAlunos(prev => prev.map(aluno => 
+      aluno.alunoId === id ? { ...aluno, observacao: obs } : aluno
+    ));
   };
 
   // Salvamento (POST)
@@ -65,22 +69,22 @@ export function Chamada() {
       setLoading(true);
       
       const payload = {
-        data: dataAula,
-        // Mapeando apenas os alunos que tiveram o status definido
-        alunos: alunos
-          .filter(a => a.status !== null)
-          .map(a => ({
-            alunoId: a.alunoId,
-            status: a.status,
-            observacao: a.observacao || ''
-          }))
+        data: dataAula.split('T')[0], // Garante formato estrito YYYY-MM-DD
+        // Agora todos os alunos têm status garantido (0, 1 ou 2)
+        alunos: alunos.map(a => ({
+          alunoId: a.alunoId,
+          status: Number(a.status !== null ? a.status : 0), // Força casting numérico no status
+          observacao: a.observacao || ''
+        }))
       };
+
+      console.log("Payload enviado:", JSON.stringify(payload, null, 2));
 
       await api.post('/Frequencia', payload);
       alert('Chamada salva com sucesso!');
       navigate('/painel');
-    } catch (error) {
-      console.error('Erro ao salvar chamada:', error);
+    } catch (error: any) {
+      console.error("Erro 400 detalhado:", error.response?.data);
       alert('Erro ao salvar chamada. Verifique o console.');
     } finally {
       setLoading(false);
@@ -159,7 +163,7 @@ export function Chamada() {
                     <input 
                       type="checkbox" 
                       checked={aluno.status === 1} 
-                      onChange={() => toggleStatus(aluno.alunoId, 'ausente')}
+                      onChange={(e) => handleStatusChange(aluno.alunoId, e.target.checked ? 1 : 0)}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
                     />
                   </td>
@@ -169,7 +173,7 @@ export function Chamada() {
                     <input 
                       type="checkbox" 
                       checked={aluno.status === 2} 
-                      onChange={() => toggleStatus(aluno.alunoId, 'justificativa')}
+                      onChange={(e) => handleStatusChange(aluno.alunoId, e.target.checked ? 2 : 0)}
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
                     />
                   </td>

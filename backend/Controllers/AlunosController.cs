@@ -24,7 +24,17 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAlunos()
         {
-            var alunos = await _context.Alunos.ToListAsync();
+            var alunos = await _context.Alunos
+                .Select(a => new {
+                    a.Id,
+                    a.Nome,
+                    a.Email,
+                    a.Telefone,
+                    Presencas = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Presente),
+                    FaltasReais = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Falta),
+                    FaltasJustificadas = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Justificada)
+                })
+                .ToListAsync();
             return Ok(alunos);
         }
 

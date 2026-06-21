@@ -23,9 +23,15 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Se der erro 401, você pode opcionalmente deslogar o usuário ou apenas rejeitar o erro
     if (error.response?.status === 401) {
       console.error("Sessão expirada ou não autorizada.");
+      localStorage.removeItem('@SistemaPresenca:token');
+      localStorage.removeItem('@SistemaPresenca:perfil');
+      localStorage.removeItem('@SistemaPresenca:nome');
+      localStorage.removeItem('@SistemaPresenca:email');
+      
+      alert('Sessão expirada. Por favor, faça login novamente.');
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }

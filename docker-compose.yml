@@ -12,10 +12,40 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U admin -d presencadb" ]
+      test: ["CMD-SHELL", "pg_isready -U admin -d presencadb"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: presenca_backend
+    ports:
+      - "5249:5249"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=presencadb;Username=admin;Password=adminpassword
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend/sistema-presenca
+      dockerfile: Dockerfile
+    container_name: presenca_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/sistema-presenca:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=/api
 
 volumes:
   postgres_data:

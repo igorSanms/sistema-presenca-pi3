@@ -121,10 +121,10 @@ export function Alunos() {
                       <td className="py-4 px-4 text-center">
                         <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">0</span>
                       </td>
-                      <td className="py-4 px-4 text-center text-green-600 font-medium">0</td>
-                      <td className="py-4 px-4 text-center text-red-600 font-medium">0</td>
-                      <td className="py-4 px-4 text-center text-blue-600 font-medium">0</td>
-                      <td className="py-4 px-4 text-center font-medium">0</td>
+                      <td className="py-4 px-4 text-center text-green-600 font-medium">{aluno.presencas || 0}</td>
+                      <td className="py-4 px-4 text-center text-red-600 font-medium">{aluno.faltasReais || 0}</td>
+                      <td className="py-4 px-4 text-center text-blue-600 font-medium">{aluno.faltasJustificadas || 0}</td>
+                      <td className="py-4 px-4 text-center font-medium">{(aluno.presencas || 0) + (aluno.faltasReais || 0) + (aluno.faltasJustificadas || 0)}</td>
                       <td className="py-4 px-4">
                         <div className="flex items-center justify-end gap-3 text-gray-400">
                           <button onClick={() => navigate(`/alunos/${aluno.id}/disciplinas`)} title="Disciplinas" className="hover:text-gray-900 transition-colors">

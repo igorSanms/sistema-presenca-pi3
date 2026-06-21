@@ -1,13 +1,13 @@
 info:
-  name: post /api/Auth/register
+  name: post /api/Auth/professores
   type: http
-  seq: 1
+  seq: 3
   tags:
     - Auth
 
 http:
-  method: POST
-  url: "{{baseUrl}}/api/Auth/register"
+  method: GET
+  url: "{{baseUrl}}/api/Auth/professores"
   body:
     type: json
     data: |-
@@ -19,7 +19,9 @@ http:
         "telefone": "88999999999",
         "areaAtuacao": "Matemática"
       }
-  auth: inherit
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 runtime:
   variables:
