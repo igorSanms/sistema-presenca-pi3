@@ -1,0 +1,40 @@
+info:
+  name: get /api/Alunos
+  type: http
+  seq: 1
+  tags:
+    - Alunos
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/Alunos"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
+
+runtime:
+  variables:
+    - name: baseUrl
+      value: http://localhost:5249
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/api/Alunos"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""

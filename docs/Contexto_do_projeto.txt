@@ -1,0 +1,24 @@
+1. CONTEXTO E VISÃO GERAL
+- Objetivo: Desenvolver um sistema web para o gerenciamento de presença de um curso comunitário gratuito.
+- Foco Principal: Simplicidade cognitiva e centralização na "Chamada do Dia", eliminando o uso de planilhas de Excel e burocracia.
+- O que o sistema NÃO fará (Fora do Escopo): Gestão financeira, pagamento de professores, portal do aluno, notificações automáticas por WhatsApp/SMS e gestão de notas. O foco é estritamente pedagógico (frequência).
+- Atores/Perfis: Coordenação (Gestão total) e Professor (Foco em realizar a chamada).
+
+2. STACK TECNOLÓGICA ACORDADA
+- Back-end: C# com ASP.NET Core (Web API).
+- Banco de Dados: PostgreSQL integrado através do Entity Framework Core (EF Core).
+- Front-end: React (construído via Vite) com TypeScript.
+- Estilização e UI: Tailwind CSS, seguindo rigorosamente a abordagem Mobile First para garantir usabilidade em celulares e tablets.
+- Gerenciamento de Estado/Requisições (Front): React Query.
+- Infraestrutura: Docker. No ambiente de desenvolvimento inicial, usaremos o docker-compose para orquestrar o banco de dados PostgreSQL. Posteriormente, o RNF06 exige a entrega de toda a aplicação (API e Front) conteinerizada.
+
+3. ARQUITETURA E FLUXO DE TRABALHO (REGRAS DA EQUIPE)
+- Repositório: O projeto funcionará como um Monorepo no GitHub, contendo as pastas /frontend, /backend, /docs e o arquivo docker-compose.yml na raiz.
+- Divisão de Tarefas: Trabalharemos em fatias verticais (Casos de Uso completos de ponta a ponta), e não por silos técnicos independentes.
+- Controle de Versão: É proibido fazer push direto na branch main. Todo código deve ser feito em branches separadas (ex: feature/rf01-login) e mesclado apenas via Pull Request (PR) com revisão de código obrigatória.
+
+4. PRIORIDADES DO MVP (SPRINT INICIAL)
+Nossos primeiros passos seguirão estritamente os Casos de Uso essenciais:
+- RF01 / RF02: Autenticação via e-mail e senha e distinção de perfis (Coordenação vs Professor).
+- RF04: Cadastro de Alunos (Nome, e-mail, telefone, contadores de falta).
+- RF06: Chamada Unificada (Registro rápido de presença/falta/justificativa).

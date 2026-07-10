@@ -1,0 +1,6 @@
+name: Localhost
+variables:
+  - name: baseUrl
+    value: http://localhost:5249
+  - secret: true
+    name: jwt_token

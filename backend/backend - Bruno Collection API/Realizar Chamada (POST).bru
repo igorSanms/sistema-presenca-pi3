@@ -1,0 +1,28 @@
+meta {
+  name: Realizar Chamada (POST)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/frequencia
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:json {
+  {
+    "data": "2026-06-04",
+    "alunos": [
+      {
+        "alunoId": "substituir-por-um-guid-real",
+        "status": "Presente",
+        "observacao": "Chegou atrasado 10 min"
+      }
+    ]
+  }
+}

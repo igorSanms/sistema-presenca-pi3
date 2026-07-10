@@ -1,0 +1,48 @@
+info:
+  name: post /api/Alunos
+  type: http
+  seq: 2
+  tags:
+    - Alunos
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/Alunos"
+  body:
+    type: json
+    data: |-
+      {
+        "nome": "teste2",
+        "email": "teste3@fdsf.com",
+        "telefone": "13123123123123"
+      }
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+examples:
+  - name: 200 Response
+    description: OK
+    request:
+      url: "{{baseUrl}}/api/Alunos"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "nome": "",
+            "email": "",
+            "telefone": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      body:
+        type: text
+        data: ""
