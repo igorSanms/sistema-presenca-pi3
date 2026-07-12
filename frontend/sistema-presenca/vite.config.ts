@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5249', // A porta do seu backend C#
+        target: process.env.BACKEND_URL || 'http://localhost:5249', // Usa env var no Docker, ou localhost fora dele
         changeOrigin: true,
         secure: false,
       }
