@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -59,16 +60,20 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
 
-    // Seed inicial do usuário administrador
-    if (!dbContext.Usuarios.Any(u => u.Email == "admin@presenca.com"))
+    // Seed inicial do usuário administrador (God Mode)
+    if (!dbContext.Usuarios.Any(u => u.Perfil == backend.Models.Enums.Perfil.Coordenacao))
     {
+        var adminEmail = app.Configuration["ADMIN_EMAIL"] ?? "admin@gmail.com";
+        var adminSenha = app.Configuration["ADMIN_PASS"] ?? "admin";
+
         dbContext.Usuarios.Add(new backend.Models.Usuario
         {
             Id = Guid.NewGuid(),
-            Nome = "Administrador",
-            Email = "admin@presenca.com",
-            SenhaHash = BCrypt.Net.BCrypt.HashPassword("SenhaForte123!"),
-            Perfil = backend.Models.Enums.Perfil.Coordenacao
+            Nome = "Administrador Sistema",
+            Email = adminEmail,
+            SenhaHash = BCrypt.Net.BCrypt.HashPassword(adminSenha),
+            Perfil = backend.Models.Enums.Perfil.Coordenacao,
+            Ativo = true
         });
         dbContext.SaveChanges();
     }

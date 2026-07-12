@@ -14,6 +14,12 @@ namespace backend.DTOs
 
         [Required(ErrorMessage = "O horário é obrigatório.")]
         public string Horarios { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A data de início é obrigatória.")]
+        public DateOnly DataInicio { get; set; }
+
+        [Required(ErrorMessage = "A data de término é obrigatória.")]
+        public DateOnly DataFim { get; set; }
     }
 
     public class DisciplinaUpdateDTO
@@ -27,6 +33,12 @@ namespace backend.DTOs
 
         [Required(ErrorMessage = "O horário é obrigatório.")]
         public string Horarios { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "A data de início é obrigatória.")]
+        public DateOnly DataInicio { get; set; }
+
+        [Required(ErrorMessage = "A data de término é obrigatória.")]
+        public DateOnly DataFim { get; set; }
     }
 
     public class DisciplinaResponseDTO
@@ -36,5 +48,7 @@ namespace backend.DTOs
         public Guid ProfessorId { get; set; }
         public string ProfessorNome { get; set; } = string.Empty;
         public string Horarios { get; set; } = string.Empty;
+        public DateOnly DataInicio { get; set; }
+        public DateOnly DataFim { get; set; }
     }
 }

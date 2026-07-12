@@ -10,5 +10,6 @@ namespace backend.Models
         public string Email { get; set; } = string.Empty;
         public string SenhaHash { get; set; } = string.Empty;
         public Perfil Perfil { get; set; }
+        public bool Ativo { get; set; } = true;
     }
 }

@@ -75,6 +75,11 @@ namespace backend.Controllers
                 return Unauthorized(new { Message = "Credenciais inválidas." });
             }
 
+            if (!usuario.Ativo)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Conta desativada pela coordenação." });
+            }
+
             var token = GenerateJwtToken(usuario);
 
             return Ok(new { Token = token, Perfil = usuario.Perfil.ToString() });
@@ -85,6 +90,7 @@ namespace backend.Controllers
         public async Task<IActionResult> GetProfessores()
         {
             var professores = await _context.Professores
+                .Where(p => p.Ativo)
                 .Select(p => new ProfessorSelecaoDTO
                 {
                     Id = p.Id,
@@ -95,6 +101,22 @@ namespace backend.Controllers
                 .ToListAsync();
 
             return Ok(professores);
+        }
+
+        [Authorize(Roles = "Coordenacao")]
+        [HttpDelete("professores/{id}")]
+        public async Task<IActionResult> DeleteProfessor(Guid id)
+        {
+            var professor = await _context.Professores.FindAsync(id);
+            if (professor == null)
+            {
+                return NotFound(new { Message = "Professor não encontrado." });
+            }
+
+            professor.Ativo = false; // Soft Delete
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Professor inativado com sucesso." });
         }
 
         private string GenerateJwtToken(Usuario usuario)
@@ -126,6 +148,41 @@ namespace backend.Controllers
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        [Authorize]
+        [HttpGet("coordenadores")]
+        public async Task<IActionResult> GetCoordenadores()
+        {
+            var coordenadores = await _context.Usuarios
+                .Where(u => u.Perfil == backend.Models.Enums.Perfil.Coordenacao && u.Ativo)
+                .Select(u => new
+                {
+                    Id = u.Id,
+                    Nome = u.Nome,
+                    Email = u.Email
+                })
+                .ToListAsync();
+
+            return Ok(coordenadores);
+        }
+
+        [Authorize(Roles = "Coordenacao")]
+        [HttpDelete("coordenadores/{id}")]
+        public async Task<IActionResult> DeleteCoordenador(Guid id)
+        {
+            var coordenador = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.Id == id && u.Perfil == backend.Models.Enums.Perfil.Coordenacao);
+
+            if (coordenador == null)
+            {
+                return NotFound(new { Message = "Coordenador não encontrado." });
+            }
+
+            coordenador.Ativo = false; // Soft Delete
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Coordenador inativado com sucesso." });
         }
     }
 }

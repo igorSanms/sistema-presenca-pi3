@@ -11,13 +11,13 @@ import { Painel } from '../pages/Painel'; // Vamos criar este arquivo no próxim
 import { NovaDisciplina } from '../pages/NovaDisciplina';
 import { EditarDisciplina } from '../pages/EditarDisciplina';
 import { Chamada } from '../pages/Chamada';
-import { Alertas } from '../pages/alertas/Alertas';
 import { Alunos } from '../pages/alunos/Alunos';
 import { NovoAluno } from '../pages/alunos/NovoAluno';
 import { EditarAluno } from '../pages/alunos/EditarAluno';
 import { AlunoDisciplinas } from '../pages/alunos/AlunoDisciplinas';
 import { Professores } from '../pages/Professores';
 import { NovoProfessor } from '../pages/NovoProfessor';
+import { Relatorios } from '../pages/relatorios/Relatorios';
 
 export function AppRoutes() {
   return (
@@ -41,10 +41,10 @@ export function AppRoutes() {
             <Route path="/alunos" element={<Alunos />} />
             <Route path="/alunos/:id/disciplinas" element={<AlunoDisciplinas />} />
             <Route path="/professores" element={<Professores />} />
+            <Route path="/relatorios" element={<Relatorios />} />
             
             {/* Rotas exclusivas da Coordenação */}
             <Route element={<ProtectedRoute allowedRoles={['Coordenacao']} />}>
-              <Route path="/alertas" element={<Alertas />} />
               <Route path="/disciplinas/nova" element={<NovaDisciplina />} />
               <Route path="/disciplinas/editar/:id" element={<EditarDisciplina />} />
               <Route path="/alunos/novo" element={<NovoAluno />} />

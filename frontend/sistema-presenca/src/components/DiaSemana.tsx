@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom'
 
 interface DiaSemanaProps {
   dia: string;
+  dataDia?: string;
   quantidadeAulas: number;
+  isHoje?: boolean;
   children?: ReactNode; // Aqui dentro injetaremos os AulaCards
 }
 
-export function DiaSemana({ dia, quantidadeAulas, children }: DiaSemanaProps) {
+export function DiaSemana({ dia, dataDia, quantidadeAulas, isHoje, children }: DiaSemanaProps) {
   const navigate = useNavigate();
 
   return (
@@ -16,10 +18,22 @@ export function DiaSemana({ dia, quantidadeAulas, children }: DiaSemanaProps) {
       
       {/* Cabeçalho do Dia (Escuro) */}
       <div className="bg-[#0A0F1C] p-4 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-white mb-1">
-            <Calendar className="w-4 h-4" />
-            <h3 className="font-bold text-base">{dia}</h3>
+        <div className="w-full">
+          <div className="flex items-center gap-2 text-white mb-1 w-full">
+            <Calendar className="w-4 h-4 flex-shrink-0" />
+            <h3 className="font-bold text-base flex items-center gap-2 w-full">
+              <span>{dia}</span>
+              {dataDia && (
+                <span className="text-sm text-white/50 font-normal">
+                  {dataDia}
+                </span>
+              )}
+              {isHoje && (
+                <span className="ml-auto bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shadow-sm">
+                  Hoje
+                </span>
+              )}
+            </h3>
           </div>
           <p className="text-gray-400 text-xs">{quantidadeAulas} {quantidadeAulas === 1 ? 'aula' : 'aulas'}</p>
         </div>

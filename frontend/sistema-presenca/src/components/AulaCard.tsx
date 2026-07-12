@@ -9,9 +9,11 @@ interface AulaCardProps {
   professor: string;
   categoria: string;
   dataAula?: string;
+  dataInicio?: string;
+  dataFim?: string;
 }
 
-export function AulaCard({ disciplinaId, disciplina, nivel, horario, professor, categoria, dataAula }: AulaCardProps) {
+export function AulaCard({ disciplinaId, disciplina, nivel, horario, professor, categoria, dataAula, dataInicio, dataFim }: AulaCardProps) {
   const navigate = useNavigate();
   
   // Regra Crítica de RBAC (Role-Based Access Control)
@@ -21,12 +23,9 @@ export function AulaCard({ disciplinaId, disciplina, nivel, horario, professor, 
   return (
     <div className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors bg-white shadow-sm flex flex-col">
       <div className="flex-1">
-        {/* Título e Badge de Nível */}
+        {/* Título */}
         <div className="flex justify-between items-start mb-3 gap-2">
           <h4 className="text-sm font-bold text-gray-900 leading-tight">{disciplina}</h4>
-          <span className="bg-gray-100 text-gray-600 text-[10px] font-medium px-2 py-1 rounded-full whitespace-nowrap">
-            {nivel}
-          </span>
         </div>
 
         {/* Informações (Horário e Professor) */}
@@ -40,11 +39,6 @@ export function AulaCard({ disciplinaId, disciplina, nivel, horario, professor, 
             {professor}
           </div>
         </div>
-
-        {/* Badge de Categoria */}
-        <span className="inline-block border border-gray-200 text-gray-600 text-[10px] font-medium px-2 py-1 rounded">
-          {categoria}
-        </span>
       </div>
 
       {/* Rodapé: Ações e Botão de Chamada Inteligente */}

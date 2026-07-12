@@ -4,12 +4,16 @@ using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // Regra 1: Todas as rotas exigem usuário autenticado
+    [Authorize]
     public class AlunosController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -19,113 +23,192 @@ namespace backend.Controllers
             _context = context;
         }
 
-        // GET: api/Alunos
-        // Regra 2: Qualquer perfil autenticado pode acessar
         [HttpGet]
-        public async Task<IActionResult> GetAlunos()
+        public async Task<IActionResult> GetAll([FromQuery] Guid? disciplinaId)
         {
-            var alunos = await _context.Alunos
-                .Select(a => new {
-                    a.Id,
-                    a.Nome,
-                    a.Email,
-                    a.Telefone,
-                    Presencas = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Presente),
-                    FaltasReais = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Falta),
-                    FaltasJustificadas = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Justificada)
+            var perfil = User.FindFirst(ClaimTypes.Role)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid.TryParse(userIdStr, out Guid userId);
+
+            var query = _context.Alunos
+                .Include(a => a.AlunoDisciplinas)
+                .ThenInclude(ad => ad.Disciplina)
+                .Where(a => a.Ativo)
+                .AsQueryable();
+
+            // RBAC estrito de visibilidade
+            if (perfil == "Professor")
+            {
+                query = query.Where(a => a.AlunoDisciplinas.Any(ad => ad.Disciplina.ProfessorId == userId));
+            }
+
+            if (disciplinaId.HasValue)
+            {
+                query = query.Where(a => a.AlunoDisciplinas.Any(ad => ad.DisciplinaId == disciplinaId.Value));
+            }
+
+            var alunos = await query
+                .OrderBy(a => a.Nome)
+                .Select(a => new AlunoResponseDTO
+                {
+                    Id = a.Id,
+                    Nome = a.Nome,
+                    Matricula = a.Matricula,
+                    Email = a.Email,
+                    Ativo = a.Ativo,
+                    Disciplinas = a.AlunoDisciplinas.Select(ad => new AlunoDisciplinaResponseDTO
+                    {
+                        Id = ad.Disciplina.Id,
+                        Nome = ad.Disciplina.Nome
+                    }).ToList()
                 })
                 .ToListAsync();
+
             return Ok(alunos);
         }
 
-        // GET: api/Alunos/{id}
-        // Regra 2: Qualquer perfil autenticado pode acessar
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetAluno(Guid id)
+        public async Task<IActionResult> GetById(Guid id)
         {
-            var aluno = await _context.Alunos.FindAsync(id);
+            var a = await _context.Alunos
+                .Include(al => al.AlunoDisciplinas)
+                .ThenInclude(ad => ad.Disciplina)
+                .FirstOrDefaultAsync(al => al.Id == id && al.Ativo);
 
-            if (aluno == null)
-                return NotFound(new { Message = "Aluno não encontrado." });
+            if (a == null) 
+                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
-            return Ok(aluno);
+            return Ok(new AlunoResponseDTO
+            {
+                Id = a.Id,
+                Nome = a.Nome,
+                Matricula = a.Matricula,
+                Email = a.Email,
+                Ativo = a.Ativo,
+                Disciplinas = a.AlunoDisciplinas.Select(ad => new AlunoDisciplinaResponseDTO
+                {
+                    Id = ad.Disciplina.Id,
+                    Nome = ad.Disciplina.Nome
+                }).ToList()
+            });
         }
 
-        // POST: api/Alunos
-        // Regra 2: Qualquer perfil autenticado pode criar
         [HttpPost]
-        public async Task<IActionResult> CreateAluno([FromBody] AlunoCreateRequest request)
+        [Authorize(Roles = "Coordenacao")]
+        public async Task<IActionResult> Create([FromBody] AlunoCreateDTO dto)
         {
-            if (!string.IsNullOrEmpty(request.Email) && await _context.Alunos.AnyAsync(a => a.Email == request.Email))
+            // Gera Matrícula Dinâmica
+            var matriculaAuto = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
+            while (await _context.Alunos.AnyAsync(a => a.Matricula == matriculaAuto))
             {
-                return BadRequest(new { Message = "Este e-mail já está cadastrado." });
+                matriculaAuto = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
             }
 
             var aluno = new Aluno
             {
                 Id = Guid.NewGuid(),
-                Nome = request.Nome,
-                Email = request.Email,
-                Telefone = request.Telefone,
-                // Regra 4: Contadores obrigatoriamente iniciam zerados
-                Presencas = 0,
-                FaltasReais = 0,
-                FaltasJustificadas = 0
+                Nome = dto.Nome,
+                Matricula = matriculaAuto,
+                Email = dto.Email,
+                Ativo = true
             };
+
+            // Processa matrículas em disciplinas
+            if (dto.DisciplinasIds != null && dto.DisciplinasIds.Any())
+            {
+                foreach (var dId in dto.DisciplinasIds)
+                {
+                    aluno.AlunoDisciplinas.Add(new AlunoDisciplina
+                    {
+                        DisciplinaId = dId
+                    });
+                }
+            }
 
             _context.Alunos.Add(aluno);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetAluno), new { id = aluno.Id }, aluno);
+            return CreatedAtAction(nameof(GetById), new { id = aluno.Id }, new { Message = "Aluno criado com sucesso." });
         }
 
-        // PUT: api/Alunos/{id}
-        // Regra 3: Restrito APENAS à Coordenação
         [HttpPut("{id}")]
         [Authorize(Roles = "Coordenacao")]
-        public async Task<IActionResult> UpdateAluno(Guid id, [FromBody] AlunoUpdateRequest request)
+        public async Task<IActionResult> Update(Guid id, [FromBody] AlunoUpdateDTO dto)
         {
             var aluno = await _context.Alunos.FindAsync(id);
+            if (aluno == null || !aluno.Ativo) 
+                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
-            if (aluno == null)
-                return NotFound(new { Message = "Aluno não encontrado." });
-
-            if (!string.IsNullOrEmpty(request.Email) && 
-                request.Email != aluno.Email && 
-                await _context.Alunos.AnyAsync(a => a.Email == request.Email && a.Id != id))
-            {
-                return BadRequest(new { Message = "Este e-mail já está cadastrado para outro aluno." });
-            }
-
-            aluno.Nome = request.Nome;
-            aluno.Email = request.Email;
-            aluno.Telefone = request.Telefone;
-            
-            // Permite a coordenação ajustar contadores manualmente se houver necessidade
-            aluno.Presencas = request.Presencas;
-            aluno.FaltasReais = request.FaltasReais;
-            aluno.FaltasJustificadas = request.FaltasJustificadas;
+            aluno.Nome = dto.Nome;
+            aluno.Email = dto.Email;
 
             await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Aluno atualizado com sucesso.", Aluno = aluno });
+            return Ok(new { Message = "Aluno atualizado com sucesso." });
         }
 
-        // DELETE: api/Alunos/{id}
-        // Regra 3: Restrito APENAS à Coordenação
         [HttpDelete("{id}")]
         [Authorize(Roles = "Coordenacao")]
-        public async Task<IActionResult> DeleteAluno(Guid id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var aluno = await _context.Alunos.FindAsync(id);
+            if (aluno == null || !aluno.Ativo) 
+                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
-            if (aluno == null)
-                return NotFound(new { Message = "Aluno não encontrado." });
-
-            _context.Alunos.Remove(aluno);
+            // Soft Delete
+            aluno.Ativo = false;
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Aluno removido com sucesso." });
+            return Ok(new { Message = "Aluno inativado com sucesso." });
+        }
+
+        [HttpPut("{id}/Matriculas")]
+        [Authorize(Roles = "Coordenacao")]
+        public async Task<IActionResult> SincronizarMatriculas(Guid id, [FromBody] List<Guid> disciplinasIds)
+        {
+            var aluno = await _context.Alunos
+                .Include(a => a.AlunoDisciplinas)
+                .FirstOrDefaultAsync(a => a.Id == id && a.Ativo);
+
+            if (aluno == null)
+            {
+                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
+            }
+
+            // Vínculos atuais no banco
+            var vinculosAtuais = aluno.AlunoDisciplinas.ToList();
+
+            // 1. Remover vínculos que não estão no corpo da nova lista
+            var paraRemover = vinculosAtuais
+                .Where(v => !disciplinasIds.Contains(v.DisciplinaId))
+                .ToList();
+
+            foreach (var v in paraRemover)
+            {
+                _context.AlunoDisciplinas.Remove(v);
+            }
+
+            // 2. Adicionar novos vínculos (que ainda não existem na base)
+            var idsAtuais = vinculosAtuais.Select(v => v.DisciplinaId).ToHashSet();
+            var paraAdicionar = disciplinasIds
+                .Where(dId => !idsAtuais.Contains(dId))
+                .ToList();
+
+            foreach (var dId in paraAdicionar)
+            {
+                var existeDisciplina = await _context.Disciplinas.AnyAsync(d => d.Id == dId);
+                if (existeDisciplina)
+                {
+                    _context.AlunoDisciplinas.Add(new AlunoDisciplina
+                    {
+                        AlunoId = id,
+                        DisciplinaId = dId
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Matrículas atualizadas com sucesso." });
         }
     }
 }

@@ -1,13 +1,39 @@
-import { useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { BookOpen, Users, UserSquare, BarChart, History, Bell, LogOut, GraduationCap } from 'lucide-react';
 import { AuthContext } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
 export function Header() {
   const { signOut, perfil, nome, email } = useContext(AuthContext); // <-- ADICIONEI NOME E EMAIL
   const navigate = useNavigate();
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
+  const [hasNewAlert, setHasNewAlert] = useState(false);
+  const [maxAlertDate, setMaxAlertDate] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (perfil === 'Coordenacao') {
+      api.get('/Alertas/Ativos')
+        .then(response => {
+          if (response.data && response.data.length > 0) {
+            const datas = response.data.map((a: any) => new Date(a.dataCriacao).getTime());
+            const maxData = Math.max(...datas);
+            setMaxAlertDate(maxData);
+
+            const ultimaVista = localStorage.getItem('@SistemaPresenca:lastSeenAlertDate');
+            if (!ultimaVista || maxData > parseInt(ultimaVista)) {
+                setHasNewAlert(true);
+            } else {
+                setHasNewAlert(false);
+            }
+          } else {
+            setHasNewAlert(false);
+          }
+        })
+        .catch(err => console.error("Erro ao carregar notificações de alertas:", err));
+    }
+  }, [perfil]);
 
   const navItemClass = (path: string) => 
     `flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
@@ -19,6 +45,14 @@ export function Header() {
   const handleLogout = () => {
     signOut(); // Limpa o token e o localStorage
     navigate('/login'); // Joga o usuário de volta pra porta de entrada
+  };
+
+  const handleBellClick = () => {
+    if (maxAlertDate) {
+        localStorage.setItem('@SistemaPresenca:lastSeenAlertDate', maxAlertDate.toString());
+        setHasNewAlert(false);
+    }
+    navigate('/relatorios?aba=alertas');
   };
 
   return (
@@ -48,15 +82,17 @@ export function Header() {
         <Link to="/relatorios" className={navItemClass('/relatorios')}>
           <BarChart className="w-4 h-4" /> Relatórios
         </Link>
-        <Link to="/historico" className={navItemClass('/historico')}>
-          <History className="w-4 h-4" /> Histórico
-        </Link>
       </nav>
 
       {/* Ações do Usuário */}
       <div className="flex items-center gap-4">
-        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors border border-gray-200">
-          <Bell className="w-5 h-5" />
+        <button onClick={handleBellClick} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors border border-gray-200">
+          <div className="relative">
+            <Bell className="w-5 h-5" />
+            {hasNewAlert && (
+              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
+            )}
+          </div>
         </button>
         
         <div className="flex items-center gap-3 border-l border-gray-200 pl-4">

@@ -98,6 +98,37 @@ namespace backend.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Motor de Alertas (Regra de Negócio: 3 faltas)
+            foreach (var dto in request.Alunos)
+            {
+                var totalFaltas = await _context.RegistrosFrequencia
+                    .Include(r => r.Aula)
+                    .CountAsync(r => r.AlunoId == dto.AlunoId 
+                                  && r.Aula!.DisciplinaId == request.DisciplinaId 
+                                  && r.Status == StatusPresenca.Falta);
+
+                if (totalFaltas >= 3)
+                {
+                    bool alertaExiste = await _context.Alertas
+                        .AnyAsync(a => a.AlunoId == dto.AlunoId 
+                                    && a.DisciplinaId == request.DisciplinaId 
+                                    && !a.Resolvido);
+
+                    if (!alertaExiste)
+                    {
+                        _context.Alertas.Add(new Alerta
+                        {
+                            AlunoId = dto.AlunoId,
+                            DisciplinaId = request.DisciplinaId,
+                            Mensagem = "O aluno ultrapassou o limite de 3 faltas."
+                        });
+                    }
+                }
+            }
+            
+            // Salva os eventuais alertas gerados
+            await _context.SaveChangesAsync();
+
             return Ok(new { Message = "Chamada registrada com sucesso." });
         }
 
@@ -150,20 +181,11 @@ namespace backend.Controllers
                 return BadRequest(new { Message = "Registro não encontrado ou já justificado." });
             }
 
-            var aluno = await _context.Alunos.FindAsync(request.AlunoId);
-            if (aluno == null)
-            {
-                return NotFound(new { Message = "Aluno não encontrado." });
-            }
-
             registro.Status = StatusPresenca.Justificada;
-
-            aluno.FaltasReais = Math.Max(0, aluno.FaltasReais - 1);
-            aluno.FaltasJustificadas++;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Falta justificada com sucesso. Contadores atualizados." });
+            return Ok(new { Message = "Falta justificada com sucesso." });
         }
     }
 }

@@ -15,7 +15,6 @@ interface Horario {
 export function NovaDisciplina() {
   const navigate = useNavigate();
 
-  // Estado dos campos do formulário
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
@@ -23,7 +22,9 @@ export function NovaDisciplina() {
     duracao: '',
     categoria: '',
     nivel: 'Iniciante',
-    preco: ''
+    preco: '',
+    dataInicio: new Date().toISOString().split('T')[0],
+    dataFim: ''
   });
 
   // Estado dos horários (começa vazio)
@@ -84,6 +85,8 @@ export function NovaDisciplina() {
     if (!formData.duracao) novosErros.duracao = 'Duração é obrigatória';
     if (!formData.categoria) novosErros.categoria = 'Categoria é obrigatória';
     if (!formData.preco) novosErros.preco = 'Preço é obrigatório';
+    if (!formData.dataInicio) novosErros.dataInicio = 'Data de Início é obrigatória';
+    if (!formData.dataFim) novosErros.dataFim = 'Data de Término é obrigatória';
 
     if (Object.keys(novosErros).length > 0) {
       setErros(novosErros);
@@ -98,7 +101,9 @@ export function NovaDisciplina() {
       const payload = {
         nome: formData.titulo,
         professorId: formData.professor,
-        horarios: horariosFormatados
+        horarios: horariosFormatados,
+        dataInicio: formData.dataInicio,
+        dataFim: formData.dataFim
       };
 
       await api.post('/Disciplinas', payload);
@@ -163,6 +168,20 @@ export function NovaDisciplina() {
               <label className="block text-sm font-bold text-gray-900 mb-2">Duração *</label>
               <input name="duracao" value={formData.duracao} onChange={handleChange} placeholder="Ex. 40 horas" className={inputClass('duracao')} />
               {erros.duracao && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.duracao}</span>}
+            </div>
+          </div>
+
+          {/* Grid de Datas do Ciclo */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border border-blue-50 bg-blue-50/20 p-4 rounded-xl">
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Data de Início *</label>
+              <input type="date" name="dataInicio" value={formData.dataInicio} onChange={handleChange} className={inputClass('dataInicio')} />
+              {erros.dataInicio && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.dataInicio}</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Data de Término *</label>
+              <input type="date" name="dataFim" value={formData.dataFim} onChange={handleChange} className={inputClass('dataFim')} />
+              {erros.dataFim && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.dataFim}</span>}
             </div>
           </div>
 

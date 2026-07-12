@@ -12,7 +12,12 @@ interface DisciplinaResponse {
   professorId: string;
   professorNome: string;
   horarios: string;
+  dataInicio?: string;
+  dataFim?: string;
 }
+
+const hojeDate = new Date();
+const hojeISO = `${hojeDate.getFullYear()}-${String(hojeDate.getMonth() + 1).padStart(2, '0')}-${String(hojeDate.getDate()).padStart(2, '0')}`;
 
 export function Painel() {
   const [disciplinas, setDisciplinas] = useState<DisciplinaResponse[]>([]);
@@ -32,11 +37,28 @@ export function Painel() {
 
   const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-  const getAulasDoDia = (dia: string) => {
+  const getAulasDoDia = (dia: string, dataISO: string) => {
     const aulas: any[] = [];
+
     disciplinas.forEach(d => {
       if (!d.horarios) return;
       
+      // Malha Fina Temporal (Filtro de Semestre e Fallback para Legados)
+      let dentroDoSemestre = true;
+      if (d.dataInicio && d.dataFim && !d.dataInicio.startsWith('0001')) {
+        
+        // Extrai apenas a porção YYYY-MM-DD das datas da disciplina
+        const inicioStr = d.dataInicio.split('T')[0];
+        const fimStr = d.dataFim.split('T')[0];
+
+        // Comparação Lexicográfica (Segura contra Timezones)
+        if (dataISO < inicioStr || dataISO > fimStr) {
+          dentroDoSemestre = false;
+        }
+      }
+
+      if (!dentroDoSemestre) return;
+
       try {
         const parsed = JSON.parse(d.horarios) as string[];
         parsed.forEach(hStr => {
@@ -54,16 +76,16 @@ export function Painel() {
     return aulas;
   };
 
-  // Calcula a data no formato YYYY-MM-DD respeitando o weekOffset selecionado
+  // Calcula a data respeitando o weekOffset selecionado (Seguro contra Timezones)
   const getDataDoDia = (diaNome: string) => {
     const dataAlvo = new Date();
-    // Adiciona o offset de semanas à data de hoje
     dataAlvo.setDate(dataAlvo.getDate() + (weekOffset * 7));
     
-    // getDay() retorna 0 (Domingo) a 6 (Sábado)
-    const diaAtualIndex = dataAlvo.getDay(); 
+    let diaAtualIndex = dataAlvo.getDay(); 
+    if (diaAtualIndex === 0) diaAtualIndex = 7; // Domingo passa a ser o último dia (7)
+
     const mapaDias: Record<string, number> = {
-      "Domingo": 0, "Segunda": 1, "Terça": 2, "Quarta": 3, "Quinta": 4, "Sexta": 5, "Sábado": 6
+      "Segunda": 1, "Terça": 2, "Quarta": 3, "Quinta": 4, "Sexta": 5, "Sábado": 6, "Domingo": 7
     };
     
     const targetDia = mapaDias[diaNome];
@@ -72,11 +94,15 @@ export function Painel() {
     const targetDate = new Date(dataAlvo);
     targetDate.setDate(dataAlvo.getDate() + diff);
     
-    // Ajuste de fuso horário
-    const offset = targetDate.getTimezoneOffset();
-    const localTargetDate = new Date(targetDate.getTime() - (offset * 60 * 1000));
+    // Formatação robusta extraindo os valores locais diretos (Imune a Timezone Shift)
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
     
-    return localTargetDate.toISOString().split('T')[0];
+    return {
+      dataISO: `${yyyy}-${mm}-${dd}`,
+      dataVisual: `${dd}/${mm}/${yyyy}`
+    };
   };
 
   const getWeekLabel = () => {
@@ -85,6 +111,9 @@ export function Painel() {
     if (weekOffset === -1) return "Semana Passada";
     return weekOffset > 0 ? `${weekOffset} semanas à frente` : `${Math.abs(weekOffset)} semanas atrás`;
   };
+
+  const perfil = localStorage.getItem('@SistemaPresenca:perfil');
+  const isCoordenacao = perfil === 'Coordenacao';
 
   return (
     <div className="flex flex-col gap-6">
@@ -117,13 +146,15 @@ export function Painel() {
           <p className="text-sm text-gray-500 mt-2">Visualize as aulas organizadas por dia da semana</p>
         </div>
         
-        <div className="w-40">
-          <Link to="/disciplinas/nova">
-            <Button variant="secondary" className="bg-[#0A0F1C] hover:bg-gray-800 text-white w-full py-2 rounded-md font-medium text-sm flex justify-center items-center">
-              <Plus className="w-4 h-4 mr-2" /> Nova Disciplina
-            </Button>
-          </Link>
-        </div>
+        {isCoordenacao && (
+          <div className="w-40">
+            <Link to="/disciplinas/nova">
+              <Button variant="secondary" className="bg-[#0A0F1C] hover:bg-gray-800 text-white w-full py-2 rounded-md font-medium text-sm flex justify-center items-center">
+                <Plus className="w-4 h-4 mr-2" /> Nova Disciplina
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Barra de Filtros */}
@@ -154,11 +185,11 @@ export function Painel() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
         
         {diasSemana.map((dia) => {
-          const aulasDoDia = getAulasDoDia(dia);
-          const dataCalculada = getDataDoDia(dia);
+          const { dataISO, dataVisual } = getDataDoDia(dia);
+          const aulasDoDia = getAulasDoDia(dia, dataISO);
 
           return (
-            <DiaSemana key={dia} dia={dia} quantidadeAulas={aulasDoDia.length}>
+            <DiaSemana key={dia} dia={dia} dataDia={dataVisual} quantidadeAulas={aulasDoDia.length} isHoje={dataISO === hojeISO}>
               {aulasDoDia.map((aula, index) => (
                 <AulaCard 
                   key={`${aula.id}-${index}`}
@@ -168,7 +199,9 @@ export function Painel() {
                   horario={aula.horarioRender}
                   professor={aula.professorNome}
                   categoria="Disciplina"
-                  dataAula={dataCalculada}
+                  dataAula={dataISO}
+                  dataInicio={aula.dataInicio}
+                  dataFim={aula.dataFim}
                 />
               ))}
             </DiaSemana>

@@ -80,7 +80,9 @@ export function Chamada() {
     try {
       setBuscando(true);
       
-      const alunosResponse = await api.get('/Alunos');
+      const alunosResponse = await api.get('/Alunos', {
+        params: { disciplinaId: disciplina }
+      });
       const alunosBase = alunosResponse.data || [];
       console.log('Alunos base recuperados:', alunosBase);
 

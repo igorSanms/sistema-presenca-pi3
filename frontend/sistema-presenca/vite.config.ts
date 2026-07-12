@@ -12,7 +12,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://backend:5249', // A porta do seu backend C#
+        target: 'http://localhost:5249', // A porta do seu backend C#
         changeOrigin: true,
         secure: false,
       }

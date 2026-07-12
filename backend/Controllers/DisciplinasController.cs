@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 using System.Threading.Tasks;
 
 namespace backend.Controllers
@@ -25,15 +27,38 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var disciplinas = await _context.Disciplinas
+            // Extrai o Perfil e o ID do usuário através do Token JWT (Claims)
+            var perfil = User.FindFirst(ClaimTypes.Role)?.Value;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            var query = _context.Disciplinas
                 .Include(d => d.Professor)
+                .AsQueryable();
+
+            // Se for Professor, isola a visualização (RBAC - Row-Level Security App Side)
+            if (perfil == "Professor")
+            {
+                if (Guid.TryParse(userIdStr, out Guid professorId))
+                {
+                    query = query.Where(d => d.ProfessorId == professorId);
+                }
+                else
+                {
+                    return Unauthorized(new { Message = "Sessão inválida. ID do professor ausente." });
+                }
+            }
+            // Se for Coordenação, a query permanece intacta (God Mode)
+
+            var disciplinas = await query
                 .Select(d => new DisciplinaResponseDTO
                 {
                     Id = d.Id,
                     Nome = d.Nome,
                     ProfessorId = d.ProfessorId,
                     ProfessorNome = d.Professor.Nome,
-                    Horarios = d.Horarios
+                    Horarios = d.Horarios,
+                    DataInicio = d.DataInicio,
+                    DataFim = d.DataFim
                 })
                 .ToListAsync();
 
@@ -51,7 +76,9 @@ namespace backend.Controllers
                     Nome = d.Nome,
                     ProfessorId = d.ProfessorId,
                     ProfessorNome = d.Professor.Nome,
-                    Horarios = d.Horarios
+                    Horarios = d.Horarios,
+                    DataInicio = d.DataInicio,
+                    DataFim = d.DataFim
                 })
                 .FirstOrDefaultAsync(d => d.Id == id);
 
@@ -77,7 +104,9 @@ namespace backend.Controllers
                 Id = Guid.NewGuid(),
                 Nome = dto.Nome,
                 ProfessorId = dto.ProfessorId,
-                Horarios = dto.Horarios
+                Horarios = dto.Horarios,
+                DataInicio = dto.DataInicio,
+                DataFim = dto.DataFim
             };
 
             _context.Disciplinas.Add(disciplina);
@@ -89,7 +118,9 @@ namespace backend.Controllers
                 Nome = disciplina.Nome,
                 ProfessorId = disciplina.ProfessorId,
                 ProfessorNome = professor.Nome,
-                Horarios = disciplina.Horarios
+                Horarios = disciplina.Horarios,
+                DataInicio = disciplina.DataInicio,
+                DataFim = disciplina.DataFim
             };
 
             return CreatedAtAction(nameof(GetById), new { id = disciplina.Id }, response);
@@ -113,10 +144,28 @@ namespace backend.Controllers
             disciplina.Nome = dto.Nome;
             disciplina.ProfessorId = dto.ProfessorId;
             disciplina.Horarios = dto.Horarios;
+            disciplina.DataInicio = dto.DataInicio;
+            disciplina.DataFim = dto.DataFim;
 
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        [Authorize(Roles = "Coordenacao")]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (disciplina == null)
+            {
+                return NotFound(new { Message = "Disciplina não encontrada." });
+            }
+
+            _context.Disciplinas.Remove(disciplina);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Disciplina excluída com sucesso." });
         }
     }
 }
