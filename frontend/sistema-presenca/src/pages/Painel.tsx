@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/Button';
 import { DiaSemana } from '../components/DiaSemana';
 import { AulaCard } from '../components/AulaCard';
@@ -16,6 +16,7 @@ interface DisciplinaResponse {
 
 export function Painel() {
   const [disciplinas, setDisciplinas] = useState<DisciplinaResponse[]>([]);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   useEffect(() => {
     async function loadDisciplinas() {
@@ -45,7 +46,6 @@ export function Painel() {
           }
         });
       } catch {
-        // Fallback caso não seja um JSON válido
         if (d.horarios.includes(dia)) {
           aulas.push({ ...d, horarioRender: d.horarios });
         }
@@ -54,14 +54,67 @@ export function Painel() {
     return aulas;
   };
 
+  // Calcula a data no formato YYYY-MM-DD respeitando o weekOffset selecionado
+  const getDataDoDia = (diaNome: string) => {
+    const dataAlvo = new Date();
+    // Adiciona o offset de semanas à data de hoje
+    dataAlvo.setDate(dataAlvo.getDate() + (weekOffset * 7));
+    
+    // getDay() retorna 0 (Domingo) a 6 (Sábado)
+    const diaAtualIndex = dataAlvo.getDay(); 
+    const mapaDias: Record<string, number> = {
+      "Domingo": 0, "Segunda": 1, "Terça": 2, "Quarta": 3, "Quinta": 4, "Sexta": 5, "Sábado": 6
+    };
+    
+    const targetDia = mapaDias[diaNome];
+    const diff = targetDia - diaAtualIndex;
+    
+    const targetDate = new Date(dataAlvo);
+    targetDate.setDate(dataAlvo.getDate() + diff);
+    
+    // Ajuste de fuso horário
+    const offset = targetDate.getTimezoneOffset();
+    const localTargetDate = new Date(targetDate.getTime() - (offset * 60 * 1000));
+    
+    return localTargetDate.toISOString().split('T')[0];
+  };
+
+  const getWeekLabel = () => {
+    if (weekOffset === 0) return "Semana Atual";
+    if (weekOffset === 1) return "Próxima Semana";
+    if (weekOffset === -1) return "Semana Passada";
+    return weekOffset > 0 ? `${weekOffset} semanas à frente` : `${Math.abs(weekOffset)} semanas atrás`;
+  };
+
   return (
     <div className="flex flex-col gap-6">
       
-      {/* Título e Botão de Ação */}
+      {/* Título e Controles */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Grade de Aulas por Dia</h1>
-          <p className="text-sm text-gray-500 mt-1">Visualize as aulas organizadas por dia da semana</p>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">Grade de Aulas</h1>
+            
+            {/* Navegação de Semanas */}
+            <div className="flex items-center bg-white border border-gray-200 rounded-md p-1 shadow-sm">
+              <button 
+                onClick={() => setWeekOffset(prev => prev - 1)} 
+                className="p-1 hover:bg-gray-100 rounded text-gray-600 transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="px-4 text-sm text-gray-700 font-medium min-w-[140px] text-center select-none">
+                {getWeekLabel()}
+              </span>
+              <button 
+                onClick={() => setWeekOffset(prev => prev + 1)} 
+                className="p-1 hover:bg-gray-100 rounded text-gray-600 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">Visualize as aulas organizadas por dia da semana</p>
         </div>
         
         <div className="w-40">
@@ -86,7 +139,6 @@ export function Painel() {
           />
         </div>
 
-        {/* Selects limpos, aguardando integração dinâmica com a API */}
         <select className="block w-full md:w-48 pl-3 pr-10 py-2 text-base border-transparent shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white text-gray-700">
           <option value="">Todas Categorias</option>
         </select>
@@ -103,16 +155,20 @@ export function Painel() {
         
         {diasSemana.map((dia) => {
           const aulasDoDia = getAulasDoDia(dia);
+          const dataCalculada = getDataDoDia(dia);
+
           return (
             <DiaSemana key={dia} dia={dia} quantidadeAulas={aulasDoDia.length}>
               {aulasDoDia.map((aula, index) => (
                 <AulaCard 
                   key={`${aula.id}-${index}`}
+                  disciplinaId={aula.id}
                   disciplina={aula.nome}
                   nivel="Geral"
                   horario={aula.horarioRender}
                   professor={aula.professorNome}
                   categoria="Disciplina"
+                  dataAula={dataCalculada}
                 />
               ))}
             </DiaSemana>

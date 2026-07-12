@@ -19,7 +19,7 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
-// Interceptor de Resposta (Se o C# disser que o token expirou)
+// Interceptor de Resposta (Se o C# disser que o token expirou ou é proibido)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -32,6 +32,9 @@ api.interceptors.response.use(
       
       alert('Sessão expirada. Por favor, faça login novamente.');
       window.location.href = '/';
+    } else if (error.response?.status === 403) {
+      alert('Acesso negado. Você não tem permissão para realizar esta ação.');
+      window.location.href = '/painel';
     }
     return Promise.reject(error);
   }

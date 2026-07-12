@@ -113,6 +113,7 @@ namespace backend.Controllers
                 new Claim(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, usuario.Email),
                 new Claim(ClaimTypes.Name, usuario.Nome),
+                new Claim(JwtRegisteredClaimNames.Name, usuario.Nome),
                 new Claim("perfil", usuario.Perfil.ToString()), // Custom claim para Perfil
                 new Claim(ClaimTypes.Role, usuario.Perfil.ToString()) // Usando o padrao nativo da Microsoft
             };

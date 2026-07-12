@@ -66,6 +66,34 @@ namespace backend.Migrations
                     b.ToTable("Alunos");
                 });
 
+            modelBuilder.Entity("backend.Models.Aula", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Conteudo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly>("Data")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("DisciplinaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Horario")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DisciplinaId");
+
+                    b.ToTable("Aulas");
+                });
+
             modelBuilder.Entity("backend.Models.Disciplina", b =>
                 {
                     b.Property<Guid>("Id")
@@ -100,12 +128,8 @@ namespace backend.Migrations
                     b.Property<Guid>("AlunoId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateOnly>("Data")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Observacao")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                    b.Property<Guid>("AulaId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -114,6 +138,9 @@ namespace backend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AlunoId");
+
+                    b.HasIndex("AulaId", "AlunoId")
+                        .IsUnique();
 
                     b.ToTable("RegistrosFrequencia");
                 });
@@ -169,6 +196,17 @@ namespace backend.Migrations
                     b.HasDiscriminator().HasValue("Professor");
                 });
 
+            modelBuilder.Entity("backend.Models.Aula", b =>
+                {
+                    b.HasOne("backend.Models.Disciplina", "Disciplina")
+                        .WithMany()
+                        .HasForeignKey("DisciplinaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Disciplina");
+                });
+
             modelBuilder.Entity("backend.Models.Disciplina", b =>
                 {
                     b.HasOne("backend.Models.Professor", "Professor")
@@ -188,10 +226,23 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("backend.Models.Aula", "Aula")
+                        .WithMany("Registros")
+                        .HasForeignKey("AulaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Aluno");
+
+                    b.Navigation("Aula");
                 });
 
             modelBuilder.Entity("backend.Models.Aluno", b =>
+                {
+                    b.Navigation("Registros");
+                });
+
+            modelBuilder.Entity("backend.Models.Aula", b =>
                 {
                     b.Navigation("Registros");
                 });

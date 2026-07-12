@@ -8,6 +8,7 @@ export function Alunos() {
   const navigate = useNavigate();
   const [alunos, setAlunos] = useState<AlunoData[]>([]);
   const [loading, setLoading] = useState(true);
+  const perfil = localStorage.getItem('@SistemaPresenca:perfil');
 
   // Assim que a tela carrega, busca os alunos no backend
   useEffect(() => {
@@ -130,12 +131,16 @@ export function Alunos() {
                           <button onClick={() => navigate(`/alunos/${aluno.id}/disciplinas`)} title="Disciplinas" className="hover:text-gray-900 transition-colors">
                             <BookOpen className="w-4 h-4" />
                           </button>
-                          <button onClick={() => navigate(`/alunos/editar/${aluno.id}`)} title="Editar" className="hover:text-blue-600 transition-colors">
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => handleExcluir(aluno.id!, aluno.nome)} title="Excluir" className="hover:text-red-600 transition-colors">
-                            <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
-                          </button>
+                          {perfil === 'Coordenacao' && (
+                            <>
+                              <button onClick={() => navigate(`/alunos/editar/${aluno.id}`)} title="Editar" className="hover:text-blue-600 transition-colors">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleExcluir(aluno.id!, aluno.nome)} title="Excluir" className="hover:text-red-600 transition-colors">
+                                <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

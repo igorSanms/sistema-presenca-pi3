@@ -31,6 +31,35 @@ namespace backend.Controllers
                 return BadRequest(ModelState);
             }
 
+            var aula = await _context.Aulas
+                .FirstOrDefaultAsync(a => a.DisciplinaId == request.DisciplinaId && a.Data == request.Data && a.Horario == request.Horario);
+
+            if (aula == null)
+            {
+                var disciplina = await _context.Disciplinas.FindAsync(request.DisciplinaId);
+                if (disciplina == null)
+                {
+                    return BadRequest(new { Message = "Disciplina não encontrada." });
+                }
+
+                aula = new Aula
+                {
+                    Id = Guid.NewGuid(),
+                    DisciplinaId = request.DisciplinaId,
+                    Data = request.Data,
+                    Horario = request.Horario,
+                    Conteudo = request.Conteudo
+                };
+                await _context.Aulas.AddAsync(aula);
+            }
+            else
+            {
+                if (request.Conteudo != null)
+                {
+                    aula.Conteudo = request.Conteudo;
+                }
+            }
+
             var alunoIds = request.Alunos.Select(a => a.AlunoId).ToList();
 
             var alunosExistentes = await _context.Alunos
@@ -38,14 +67,14 @@ namespace backend.Controllers
                 .ToDictionaryAsync(a => a.Id);
 
             var registrosExistentes = await _context.RegistrosFrequencia
-                .Where(r => r.Data == request.Data && alunoIds.Contains(r.AlunoId))
+                .Where(r => r.AulaId == aula.Id && alunoIds.Contains(r.AlunoId))
                 .ToDictionaryAsync(r => r.AlunoId);
 
             foreach (var dto in request.Alunos)
             {
                 if (!alunosExistentes.TryGetValue(dto.AlunoId, out var aluno))
                 {
-                    continue; // Ignora caso o ID do aluno seja inválido
+                    continue;
                 }
 
                 if (registrosExistentes.TryGetValue(dto.AlunoId, out var registroExistente))
@@ -54,16 +83,14 @@ namespace backend.Controllers
                     {
                         registroExistente.Status = dto.Status;
                     }
-                    registroExistente.Observacao = dto.Observacao;
                 }
                 else
                 {
                     var novoRegistro = new RegistroFrequencia
                     {
-                        Data = request.Data,
+                        AulaId = aula.Id,
                         AlunoId = dto.AlunoId,
-                        Status = dto.Status,
-                        Observacao = dto.Observacao
+                        Status = dto.Status
                     };
                     await _context.RegistrosFrequencia.AddAsync(novoRegistro);
                 }
@@ -71,21 +98,21 @@ namespace backend.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Chamada registrada e contadores atualizados com sucesso." });
+            return Ok(new { Message = "Chamada registrada com sucesso." });
         }
 
-
-
-        [HttpGet("{data}")]
-        public async Task<IActionResult> ObterChamadaDoDia(DateOnly data)
+        [HttpGet]
+        public async Task<IActionResult> ObterChamadaDoDia([FromQuery] DateOnly data, [FromQuery] Guid disciplinaId, [FromQuery] string horario)
         {
             var alunos = await _context.Alunos
                 .OrderBy(a => a.Nome)
                 .ToListAsync();
 
-            var registros = await _context.RegistrosFrequencia
-                .Where(r => r.Data == data)
-                .ToDictionaryAsync(r => r.AlunoId);
+            var registrosQuery = _context.RegistrosFrequencia
+                .Include(r => r.Aula)
+                .Where(r => r.Aula != null && r.Aula.Data == data && r.Aula.DisciplinaId == disciplinaId && r.Aula.Horario == horario);
+
+            var registros = await registrosQuery.ToDictionaryAsync(r => r.AlunoId);
 
             var response = alunos.Select(a =>
             {
@@ -95,8 +122,7 @@ namespace backend.Controllers
                 {
                     AlunoId = a.Id,
                     Nome = a.Nome,
-                    Status = registro?.Status,
-                    Observacao = registro?.Observacao
+                    Status = registro?.Status
                 };
             }).ToList();
 
@@ -113,11 +139,15 @@ namespace backend.Controllers
             }
 
             var registro = await _context.RegistrosFrequencia
-                .FirstOrDefaultAsync(r => r.AlunoId == request.AlunoId && r.Data == request.Data);
+                .Include(r => r.Aula)
+                .FirstOrDefaultAsync(r => r.AlunoId == request.AlunoId 
+                                       && r.Aula!.Data == request.Data 
+                                       && r.Aula.DisciplinaId == request.DisciplinaId 
+                                       && r.Aula.Horario == request.Horario);
 
             if (registro == null || registro.Status != StatusPresenca.Falta)
             {
-                return BadRequest(new { Message = "Apenas ausências não justificadas podem ser alteradas." });
+                return BadRequest(new { Message = "Registro não encontrado ou já justificado." });
             }
 
             var aluno = await _context.Alunos.FindAsync(request.AlunoId);
@@ -127,7 +157,6 @@ namespace backend.Controllers
             }
 
             registro.Status = StatusPresenca.Justificada;
-            registro.Observacao = request.Observacao;
 
             aluno.FaltasReais = Math.Max(0, aluno.FaltasReais - 1);
             aluno.FaltasJustificadas++;

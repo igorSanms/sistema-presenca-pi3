@@ -23,17 +23,6 @@ export function DiaSemana({ dia, quantidadeAulas, children }: DiaSemanaProps) {
           </div>
           <p className="text-gray-400 text-xs">{quantidadeAulas} {quantidadeAulas === 1 ? 'aula' : 'aulas'}</p>
         </div>
-        
-        {/* Só mostra o botão de chamada se houver aulas cadastradas, conforme seu print */}
-        {quantidadeAulas > 0 && (
-          <button 
-            onClick={() => navigate(`/chamada/${dia.toLowerCase()}`)} 
-            className="bg-white text-gray-900 text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-2 hover:bg-gray-100 transition-colors"
-          >
-            <ClipboardCheck className="w-4 h-4" />
-            Chamada
-          </button>
-        )}
       </div>
 
       {/* Corpo do Dia */}

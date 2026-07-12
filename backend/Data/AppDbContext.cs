@@ -15,6 +15,7 @@ namespace backend.Data
         public DbSet<Aluno> Alunos { get; set; }
         public DbSet<RegistroFrequencia> RegistrosFrequencia { get; set; }
         public DbSet<Disciplina> Disciplinas { get; set; }
+        public DbSet<Aula> Aulas { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -63,18 +64,38 @@ namespace backend.Data
                 entity.HasIndex(e => e.Email).IsUnique();
             });
 
+            // Mapping for Aula
+            modelBuilder.Entity<Aula>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Data).IsRequired();
+                entity.Property(e => e.Horario).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.Conteudo).HasMaxLength(500);
+
+                entity.HasOne(e => e.Disciplina)
+                      .WithMany()
+                      .HasForeignKey(e => e.DisciplinaId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // Mapping for RegistroFrequencia
             modelBuilder.Entity<RegistroFrequencia>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Data).IsRequired();
                 entity.Property(e => e.Status).IsRequired().HasConversion<string>();
-                entity.Property(e => e.Observacao).HasMaxLength(500);
+
+                entity.HasOne(e => e.Aula)
+                      .WithMany(a => a.Registros)
+                      .HasForeignKey(e => e.AulaId)
+                      .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Aluno)
                       .WithMany(a => a.Registros)
                       .HasForeignKey(e => e.AlunoId)
-                      .OnDelete(DeleteBehavior.Cascade); // Regra de exclusão em cascata
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // Garante que um aluno só possa ter uma frequência por aula
+                entity.HasIndex(e => new { e.AulaId, e.AlunoId }).IsUnique();
             });
 
             // Mapping for Disciplina

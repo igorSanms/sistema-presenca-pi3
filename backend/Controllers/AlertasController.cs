@@ -24,15 +24,21 @@ namespace backend.Controllers
         public async Task<IActionResult> GetAlertas()
         {
             var alertas = await _context.Alunos
-                .Where(a => a.FaltasReais >= 3)
-                .OrderByDescending(a => a.FaltasReais)
-                .Select(a => new AlertaResponseDTO
+                .Select(a => new
                 {
-                    AlunoId = a.Id,
-                    Nome = a.Nome,
-                    FaltasReais = a.FaltasReais,
-                    NivelAlerta = a.FaltasReais == 3 ? 1 : 2
+                    a.Id,
+                    a.Nome,
+                    TotalFaltas = _context.RegistrosFrequencia.Count(r => r.AlunoId == a.Id && r.Status == backend.Models.Enums.StatusPresenca.Falta)
                 })
+                .Where(x => x.TotalFaltas >= 3)
+                .Select(x => new AlertaResponseDTO
+                {
+                    AlunoId = x.Id,
+                    Nome = x.Nome,
+                    FaltasReais = x.TotalFaltas,
+                    NivelAlerta = x.TotalFaltas == 3 ? 1 : 2
+                })
+                .OrderByDescending(x => x.FaltasReais)
                 .ToListAsync();
 
             return Ok(alertas);

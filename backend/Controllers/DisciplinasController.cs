@@ -40,6 +40,29 @@ namespace backend.Controllers
             return Ok(disciplinas);
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var disciplina = await _context.Disciplinas
+                .Include(d => d.Professor)
+                .Select(d => new DisciplinaResponseDTO
+                {
+                    Id = d.Id,
+                    Nome = d.Nome,
+                    ProfessorId = d.ProfessorId,
+                    ProfessorNome = d.Professor.Nome,
+                    Horarios = d.Horarios
+                })
+                .FirstOrDefaultAsync(d => d.Id == id);
+
+            if (disciplina == null)
+            {
+                return NotFound(new { Message = "Disciplina não encontrada." });
+            }
+
+            return Ok(disciplina);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] DisciplinaCreateDTO dto)
         {
@@ -69,7 +92,31 @@ namespace backend.Controllers
                 Horarios = disciplina.Horarios
             };
 
-            return CreatedAtAction(nameof(GetAll), new { id = disciplina.Id }, response); // Pode-se ajustar para GetById futuramente
+            return CreatedAtAction(nameof(GetById), new { id = disciplina.Id }, response);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] DisciplinaUpdateDTO dto)
+        {
+            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (disciplina == null)
+            {
+                return NotFound(new { Message = "Disciplina não encontrada." });
+            }
+
+            var professor = await _context.Professores.FindAsync(dto.ProfessorId);
+            if (professor == null)
+            {
+                return BadRequest(new { Message = "Professor não encontrado." });
+            }
+
+            disciplina.Nome = dto.Nome;
+            disciplina.ProfessorId = dto.ProfessorId;
+            disciplina.Horarios = dto.Horarios;
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }
