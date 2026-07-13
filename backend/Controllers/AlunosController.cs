@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using backend.Models.Enums; // 👉 Adicionado para reconhecer o StatusPresenca
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -56,6 +57,13 @@ namespace backend.Controllers
                     Matricula = a.Matricula,
                     Email = a.Email,
                     Ativo = a.Ativo,
+                    
+                    // 👉 MATEMÁTICA DA CHAMADA UNIFICADA INJETADA DIRETO NO BANCO
+                    Presencas = a.Registros.Count(r => r.Status == (StatusPresenca)0), // Status 0 = Presente
+                    FaltasReais = a.Registros.Count(r => r.Status == StatusPresenca.Falta), // Status 1 = Falta
+                    FaltasJustificadas = a.Registros.Count(r => r.Status == StatusPresenca.Justificada), // Status 2 = Justificada
+                    TotalAulas = a.Registros.Count(), // Soma de todas as frequências dele
+                    
                     Disciplinas = a.AlunoDisciplinas.Select(ad => new AlunoDisciplinaResponseDTO
                     {
                         Id = ad.Disciplina.Id,
@@ -70,34 +78,41 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var a = await _context.Alunos
-                .Include(al => al.AlunoDisciplinas)
-                .ThenInclude(ad => ad.Disciplina)
-                .FirstOrDefaultAsync(al => al.Id == id && al.Ativo);
+            // Refatorado para usar o Select e trazer os contadores dinâmicos calculados do aluno específico
+            var aluno = await _context.Alunos
+                .Where(al => al.Id == id && al.Ativo)
+                .Select(a => new AlunoResponseDTO
+                {
+                    Id = a.Id,
+                    Nome = a.Nome,
+                    Matricula = a.Matricula,
+                    Email = a.Email,
+                    Ativo = a.Ativo,
+                    
+                    // 👉 CONTADORES PARA A TELA DE DETALHES/EDIÇÃO
+                    Presencas = a.Registros.Count(r => r.Status == (StatusPresenca)0),
+                    FaltasReais = a.Registros.Count(r => r.Status == StatusPresenca.Falta),
+                    FaltasJustificadas = a.Registros.Count(r => r.Status == StatusPresenca.Justificada),
+                    TotalAulas = a.Registros.Count(),
+                    
+                    Disciplinas = a.AlunoDisciplinas.Select(ad => new AlunoDisciplinaResponseDTO
+                    {
+                        Id = ad.Disciplina.Id,
+                        Nome = ad.Disciplina.Nome
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync();
 
-            if (a == null) 
+            if (aluno == null) 
                 return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
-            return Ok(new AlunoResponseDTO
-            {
-                Id = a.Id,
-                Nome = a.Nome,
-                Matricula = a.Matricula,
-                Email = a.Email,
-                Ativo = a.Ativo,
-                Disciplinas = a.AlunoDisciplinas.Select(ad => new AlunoDisciplinaResponseDTO
-                {
-                    Id = ad.Disciplina.Id,
-                    Nome = ad.Disciplina.Nome
-                }).ToList()
-            });
+            return Ok(aluno);
         }
 
         [HttpPost]
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> Create([FromBody] AlunoCreateDTO dto)
         {
-            // Gera Matrícula Dinâmica
             var matriculaAuto = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
             while (await _context.Alunos.AnyAsync(a => a.Matricula == matriculaAuto))
             {
@@ -113,7 +128,6 @@ namespace backend.Controllers
                 Ativo = true
             };
 
-            // Processa matrículas em disciplinas
             if (dto.DisciplinasIds != null && dto.DisciplinasIds.Any())
             {
                 foreach (var dId in dto.DisciplinasIds)
@@ -154,7 +168,6 @@ namespace backend.Controllers
             if (aluno == null || !aluno.Ativo) 
                 return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
-            // Soft Delete
             aluno.Ativo = false;
             await _context.SaveChangesAsync();
 
@@ -174,10 +187,8 @@ namespace backend.Controllers
                 return NotFound(new { Message = "Aluno não encontrado ou inativo." });
             }
 
-            // Vínculos atuais no banco
             var vinculosAtuais = aluno.AlunoDisciplinas.ToList();
 
-            // 1. Remover vínculos que não estão no corpo da nova lista
             var paraRemover = vinculosAtuais
                 .Where(v => !disciplinasIds.Contains(v.DisciplinaId))
                 .ToList();
@@ -187,7 +198,6 @@ namespace backend.Controllers
                 _context.AlunoDisciplinas.Remove(v);
             }
 
-            // 2. Adicionar novos vínculos (que ainda não existem na base)
             var idsAtuais = vinculosAtuais.Select(v => v.DisciplinaId).ToHashSet();
             var paraAdicionar = disciplinasIds
                 .Where(dId => !idsAtuais.Contains(dId))

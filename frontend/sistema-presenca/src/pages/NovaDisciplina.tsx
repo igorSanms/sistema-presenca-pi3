@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { api } from '../services/api';
 
-// Tipagem para os horários dinâmicos
 interface Horario {
   id: number;
   dia: string;
@@ -16,90 +15,71 @@ export function NovaDisciplina() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    titulo: '',
-    descricao: '',
+    nome: '',
     professor: '',
-    duracao: '',
-    categoria: '',
-    nivel: 'Iniciante',
-    preco: '',
     dataInicio: new Date().toISOString().split('T')[0],
     dataFim: ''
   });
 
-  // Estado dos horários (começa vazio)
   const [horarios, setHorarios] = useState<Horario[]>([]);
-
-  // Estado dos professores
-  const [professores, setProfessores] = useState<{id: string, nome: string}[]>([]);
-  
-  // Estado para controlar as mensagens de erro
+  const [professores, setProfessores] = useState<{ id: string; nome: string }[]>([]);
   const [erros, setErros] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
 
-  // Buscar professores na montagem
   useEffect(() => {
     async function loadProfessores() {
       try {
         const { data } = await api.get('/Auth/professores');
-        setProfessores(data);
+        setProfessores(data || []);
       } catch (error) {
-        console.error('Erro ao carregar professores:', error);
+        console.error('Erro ao buscar professores:', error);
       }
     }
     loadProfessores();
   }, []);
 
-  // Atualiza os campos de texto normais
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Limpa o erro do campo quando o usuário começa a digitar
-    if (erros[e.target.name]) {
-      setErros({ ...erros, [e.target.name]: '' });
-    }
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    if (erros[name]) setErros({ ...erros, [name]: '' });
   };
 
-  // Adiciona um novo bloco de horário vazio
   const handleAddHorario = () => {
-    const novoHorario = {
-      id: Date.now(), // Gera um ID único baseado no tempo
-      dia: 'Segunda',
-      inicio: '',
-      termino: ''
-    };
-    setHorarios([...horarios, novoHorario]);
+    setHorarios([...horarios, { id: Date.now(), dia: 'Segunda', inicio: '', termino: '' }]);
   };
 
-  // Atualiza um campo específico de um horário específico
   const handleHorarioChange = (id: number, campo: keyof Horario, valor: string) => {
-    setHorarios(horarios.map(h => h.id === id ? { ...h, [campo]: valor } : h));
+    setHorarios(horarios.map(h => (h.id === id ? { ...h, [campo]: valor } : h)));
   };
 
-  // Função de salvar com validação visual
+  const handleRemoveHorario = (id: number) => {
+    setHorarios(horarios.filter(h => h.id !== id));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const novosErros: Record<string, string> = {};
 
-    if (!formData.titulo) novosErros.titulo = 'Título é obrigatório';
-    if (!formData.descricao) novosErros.descricao = 'Descrição é obrigatória';
-    if (!formData.professor) novosErros.professor = 'Professor(a) é obrigatório';
-    if (!formData.duracao) novosErros.duracao = 'Duração é obrigatória';
-    if (!formData.categoria) novosErros.categoria = 'Categoria é obrigatória';
-    if (!formData.preco) novosErros.preco = 'Preço é obrigatório';
-    if (!formData.dataInicio) novosErros.dataInicio = 'Data de Início é obrigatória';
-    if (!formData.dataFim) novosErros.dataFim = 'Data de Término é obrigatória';
+    if (!formData.nome.trim()) novosErros.nome = 'Nome da disciplina é obrigatório';
+    if (!formData.professor) novosErros.professor = 'Professor é obrigatório';
+    if (!formData.dataInicio) novosErros.dataInicio = 'Data de início é obrigatória';
+    if (!formData.dataFim) novosErros.dataFim = 'Data de término é obrigatória';
+
+    if (horarios.length === 0) {
+      novosErros.horarios = 'Adicione ao menos um horário';
+    }
 
     if (Object.keys(novosErros).length > 0) {
       setErros(novosErros);
-      return; // Interrompe o salvamento se houver erros
+      return;
     }
 
     try {
-      const horariosFormatados = horarios.length > 0 
-        ? JSON.stringify(horarios.map(h => `${h.dia} ${h.inicio}-${h.termino}`)) 
-        : '';
+      setLoading(true);
+      const horariosFormatados = JSON.stringify(horarios.map(h => `${h.dia} ${h.inicio}-${h.termino}`));
 
       const payload = {
-        nome: formData.titulo,
+        nome: formData.nome,
         professorId: formData.professor,
         horarios: horariosFormatados,
         dataInicio: formData.dataInicio,
@@ -110,177 +90,91 @@ export function NovaDisciplina() {
       alert('Disciplina cadastrada com sucesso!');
       navigate('/painel');
     } catch (error) {
-      console.error('Erro ao salvar disciplina:', error);
-      alert('Erro ao realizar o cadastro da disciplina. Verifique os dados e tente novamente.');
+      console.error(error);
+      alert('Erro ao cadastrar disciplina. Verifique o console.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Helper para o CSS dos inputs com erro
-  const inputClass = (campo: string) => `w-full bg-gray-100 border focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-md px-4 py-2.5 text-sm text-gray-900 ${
-    erros[campo] ? 'border-red-300' : 'border-transparent'
-  }`;
+  const inputClass = (campo: string) => 
+    `w-full bg-gray-50 border focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-md px-4 py-2.5 text-sm text-gray-900 transition-colors ${erros[campo] ? 'border-red-300 bg-red-50/30' : 'border-gray-200'}`;
 
   return (
-    <div className="max-w-5xl mx-auto pb-10">
-      
-      {/* Botão Voltar */}
-      <button 
-        onClick={() => navigate(-1)} 
-        className="flex items-center gap-2 text-gray-900 font-medium mb-6 hover:text-gray-600 transition-colors"
-      >
+    <div className="max-w-[1310px] mx-auto w-full pb-10">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-900 font-medium mb-6 hover:text-gray-600 transition-colors">
         <ArrowLeft className="w-5 h-5" /> Voltar
       </button>
 
-      {/* Container Principal Branco */}
       <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900">Nova disciplina</h1>
-        <p className="text-sm text-gray-500 mb-8 mt-1">Preencha os dados para cadastrar uma nova disciplina</p>
+        <h1 className="text-2xl font-bold text-gray-900">Nova Disciplina</h1>
+        <p className="text-sm text-gray-500 mb-8 mt-1">Preencha os dados abaixo para inserir uma nova matéria na grade do cursinho.</p>
 
         <form onSubmit={handleSave} className="flex flex-col gap-6">
           
-          {/* Título */}
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Título da disciplina *</label>
-            <input name="titulo" value={formData.titulo} onChange={handleChange} placeholder="Ex. Língua Portuguesa" className={inputClass('titulo')} />
-            {erros.titulo && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.titulo}</span>}
+            <label className="block text-sm font-bold text-gray-900 mb-2">Nome da Disciplina *</label>
+            <input name="nome" value={formData.nome} onChange={handleChange} placeholder="Ex: Matemática, Biologia..." className={inputClass('nome')} />
+            {erros.nome && <span className="text-[#ff6b6b] text-xs mt-1 block font-medium">{erros.nome}</span>}
           </div>
 
-          {/* Descrição */}
           <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Descrição *</label>
-            <input name="descricao" value={formData.descricao} onChange={handleChange} placeholder="Descreva o conteúdo da disciplina" className={inputClass('descricao')} />
-            {erros.descricao && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.descricao}</span>}
+            <label className="block text-sm font-bold text-gray-900 mb-2">Professor Responsável *</label>
+            <select name="professor" value={formData.professor} onChange={handleChange} className={inputClass('professor')}>
+              <option value="">Selecione o professor</option>
+              {professores.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+            {erros.professor && <span className="text-[#ff6b6b] text-xs mt-1 block font-medium">{erros.professor}</span>}
           </div>
 
-          {/* Grid de 2 colunas: Professor e Duração */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Professor *</label>
-              <select name="professor" value={formData.professor} onChange={handleChange} className={inputClass('professor')}>
-                <option value="">Selecione um professor</option>
-                {professores.map(p => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-              {erros.professor && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.professor}</span>}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Duração *</label>
-              <input name="duracao" value={formData.duracao} onChange={handleChange} placeholder="Ex. 40 horas" className={inputClass('duracao')} />
-              {erros.duracao && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.duracao}</span>}
-            </div>
-          </div>
-
-          {/* Grid de Datas do Ciclo */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border border-blue-50 bg-blue-50/20 p-4 rounded-xl">
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Data de Início *</label>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Data Início *</label>
               <input type="date" name="dataInicio" value={formData.dataInicio} onChange={handleChange} className={inputClass('dataInicio')} />
-              {erros.dataInicio && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.dataInicio}</span>}
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Data de Término *</label>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Data Fim *</label>
               <input type="date" name="dataFim" value={formData.dataFim} onChange={handleChange} className={inputClass('dataFim')} />
-              {erros.dataFim && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.dataFim}</span>}
             </div>
           </div>
 
-          {/* Grid de 2 colunas: Categoria e Nível */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Categoria *</label>
-              <input name="categoria" value={formData.categoria} onChange={handleChange} placeholder="Ex. Humanas" className={inputClass('categoria')} />
-              {erros.categoria && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.categoria}</span>}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Nível</label>
-              <select name="nivel" value={formData.nivel} onChange={handleChange} className={inputClass('nivel')}>
-                <option value="Iniciante">Iniciante</option>
-                <option value="Intermediário">Intermediário</option>
-                <option value="Avançado">Avançado</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Preço */}
-          <div>
-            <label className="block text-sm font-bold text-gray-900 mb-2">Preço (R$) *</label>
-            <input name="preco" value={formData.preco} onChange={handleChange} placeholder="Ex. 20 Reais" className={inputClass('preco')} />
-            {erros.preco && <span className="text-[#ff6b6b] text-xs mt-1 block">{erros.preco}</span>}
-          </div>
-
-          <hr className="border-gray-200 my-2" />
-
-          {/* Seção Dinâmica de Horários */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">Horários das Aulas</h3>
-                <p className="text-sm text-gray-500">Adicione um ou mais horários para esta disciplina</p>
-              </div>
-              <Button type="button" variant="outline" onClick={handleAddHorario} className="text-gray-900 border border-gray-300 px-4 py-2 flex items-center justify-center rounded-md">
-                <Plus className="w-4 h-4 mr-2" /> Adicionar Horário
+          <div className="mt-2">
+            <div className="flex justify-between items-center mb-4">
+              <label className="block text-sm font-bold text-gray-900">Grade de Horários *</label>
+              <Button type="button" variant="outline" onClick={handleAddHorario} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-gray-50">
+                <Plus className="w-4 h-4" /> Adicionar Horário
               </Button>
             </div>
+            
+            {erros.horarios && <span className="text-[#ff6b6b] text-xs mb-3 block font-medium">{erros.horarios}</span>}
 
-            {horarios.length === 0 ? (
-              // Empty State dos Horários
-              <div className="border border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center text-gray-500 bg-gray-50/50">
-                <Clock className="w-10 h-10 mb-3 text-gray-400" />
-                <p className="text-sm">Nenhum horário adicionado. Clique em "Adicionar Horário" para começar.</p>
-              </div>
-            ) : (
-              // Lista de Horários Adicionados
-              <div className="flex flex-col gap-4">
-                {horarios.map((horario, index) => (
-                  <div key={horario.id} className="border border-gray-200 rounded-xl p-6 relative bg-white shadow-sm">
-                    <h4 className="text-sm font-bold text-gray-900 mb-4">Horário {index + 1}</h4>
+            <div className="flex flex-col gap-3">
+              {horarios.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-300 rounded-lg text-gray-500 text-sm">
+                  Nenhum horário cadastrado. Clique em "Adicionar Horário".
+                </div>
+              ) : (
+                horarios.map((h) => (
+                  <div key={h.id} className="flex items-center gap-4 border border-gray-200 bg-white p-3 rounded-lg shadow-sm">
+                    <select value={h.dia} onChange={e => handleHorarioChange(h.id, 'dia', e.target.value)} className="flex-1 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none">
+                      {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(d => <option key={d}>{d}</option>)}
+                    </select>
+                    <input type="time" value={h.inicio} onChange={e => handleHorarioChange(h.id, 'inicio', e.target.value)} className="w-32 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none" />
+                    <span className="text-gray-400 font-medium">até</span>
+                    <input type="time" value={h.termino} onChange={e => handleHorarioChange(h.id, 'termino', e.target.value)} className="w-32 bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-blue-500 outline-none" />
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">Dia da semana</label>
-                        <select value={horario.dia} onChange={(e) => handleHorarioChange(horario.id, 'dia', e.target.value)} className="w-full bg-gray-100 border-transparent rounded-md px-3 py-2 text-sm focus:bg-white focus:ring-1 focus:ring-blue-500">
-                          <option>Segunda</option>
-                          <option>Terça</option>
-                          <option>Quarta</option>
-                          <option>Quinta</option>
-                          <option>Sexta</option>
-                          <option>Sábado</option>
-                          <option>Domingo</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">Horário de Início</label>
-                        <input type="time" value={horario.inicio} onChange={(e) => handleHorarioChange(horario.id, 'inicio', e.target.value)} className="w-full bg-gray-100 border-transparent rounded-md px-3 py-2 text-sm focus:bg-white focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-2">Horário de Término</label>
-                        <input type="time" value={horario.termino} onChange={(e) => handleHorarioChange(horario.id, 'termino', e.target.value)} className="w-full bg-gray-100 border-transparent rounded-md px-3 py-2 text-sm focus:bg-white focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                    </div>
+                    <button type="button" onClick={() => handleRemoveHorario(h.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Remover horário">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
 
-          {/* Botões de Ação Final */}
-          <div className="flex items-center gap-4 mt-8 pt-4">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => navigate(-1)} 
-              className="flex-1 border border-gray-300 text-gray-900 py-2.5 flex items-center justify-center rounded-md"
-            >
-              Cancelar
-            </Button>
-
-            <Button 
-              type="submit" 
-              variant="secondary" 
-              className="flex-1 bg-[#0A0F1C] hover:bg-gray-800 text-white py-2.5 flex items-center justify-center rounded-md"
-            >
-              <Save className="w-4 h-4 mr-2" /> Cadastrar
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <Button type="submit" disabled={loading} className="w-full bg-[#0A0F1C] hover:bg-gray-800 text-white py-3 rounded-md flex items-center justify-center transition-colors disabled:opacity-50">
+              <Save className="w-5 h-5 mr-2" /> {loading ? 'Cadastrando...' : 'Cadastrar Disciplina'}
             </Button>
           </div>
 

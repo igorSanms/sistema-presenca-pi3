@@ -8,13 +8,11 @@ namespace backend.DTOs
         [Required]
         public Guid AlunoId { get; set; }
 
-        [Required]
-        public Guid DisciplinaId { get; set; }
+        public Guid? DisciplinaId { get; set; }
 
         [Required]
         public DateOnly Data { get; set; }
 
-        [Required]
-        public string Horario { get; set; } = string.Empty;
+        public string? Horario { get; set; }
     }
 }

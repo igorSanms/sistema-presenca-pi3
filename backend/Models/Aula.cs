@@ -9,18 +9,18 @@ namespace backend.Models
     {
         public Guid Id { get; set; }
         
-        [Required]
-        public Guid DisciplinaId { get; set; }
+        // Transformado em opcional para permitir "Dia Letivo Unificado"
+        public Guid? DisciplinaId { get; set; } 
         
         [ForeignKey("DisciplinaId")]
-        public Disciplina Disciplina { get; set; } = null!;
+        public Disciplina? Disciplina { get; set; }
 
         [Required]
         public DateOnly Data { get; set; }
 
-        [Required]
+        // Mantido para compatibilidade, mas nosso front mandará "Turno Unico"
         [MaxLength(50)]
-        public string Horario { get; set; } = string.Empty;
+        public string? Horario { get; set; } 
 
         [MaxLength(500)]
         public string? Conteudo { get; set; }

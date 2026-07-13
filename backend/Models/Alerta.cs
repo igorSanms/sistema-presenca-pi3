@@ -15,8 +15,8 @@ namespace backend.Models
         [ForeignKey("AlunoId")]
         public Aluno? Aluno { get; set; }
 
-        [Required]
-        public Guid DisciplinaId { get; set; }
+        // Opcional para alertas de falta unificada
+        public Guid? DisciplinaId { get; set; }
 
         [ForeignKey("DisciplinaId")]
         public Disciplina? Disciplina { get; set; }
@@ -27,9 +27,7 @@ namespace backend.Models
         public bool Resolvido { get; set; } = false;
 
         public DateTime DataCriacao { get; set; } = DateTime.UtcNow;
-
         public DateTime? DataResolucao { get; set; }
-
         public Guid? ResolvidoPorId { get; set; }
 
         [ForeignKey("ResolvidoPorId")]

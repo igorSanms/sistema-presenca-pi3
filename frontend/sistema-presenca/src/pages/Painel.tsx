@@ -1,33 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../components/Button';
 import { DiaSemana } from '../components/DiaSemana';
 import { AulaCard } from '../components/AulaCard';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { AuthContext } from '../contexts/AuthContext';
 
 interface DisciplinaResponse {
   id: string;
   nome: string;
   professorId: string;
-  professorNome: string;
+  professorNome?: string;
   horarios: string;
   dataInicio?: string;
   dataFim?: string;
 }
 
-const hojeDate = new Date();
-const hojeISO = `${hojeDate.getFullYear()}-${String(hojeDate.getMonth() + 1).padStart(2, '0')}-${String(hojeDate.getDate()).padStart(2, '0')}`;
-
 export function Painel() {
+  const navigate = useNavigate();
+  const { perfil } = useContext(AuthContext);
+  const isCoordenacao = perfil === 'Coordenacao';
+  
   const [disciplinas, setDisciplinas] = useState<DisciplinaResponse[]>([]);
+  const [termoBusca, setTermoBusca] = useState('');
   const [weekOffset, setWeekOffset] = useState(0);
+
+  // Data de hoje calculada de forma imune a problemas de timezone
+  const hojeDate = new Date();
+  const hojeISO = `${hojeDate.getFullYear()}-${String(hojeDate.getMonth() + 1).padStart(2, '0')}-${String(hojeDate.getDate()).padStart(2, '0')}`;
 
   useEffect(() => {
     async function loadDisciplinas() {
       try {
         const response = await api.get('/Disciplinas');
-        setDisciplinas(response.data);
+        setDisciplinas(response.data || []);
       } catch (error) {
         console.error('Erro ao buscar disciplinas:', error);
       }
@@ -35,23 +42,25 @@ export function Painel() {
     loadDisciplinas();
   }, []);
 
+  const disciplinasFiltradas = disciplinas.filter(disciplina => 
+    disciplina.nome && disciplina.nome.toLowerCase().includes(termoBusca.toLowerCase())
+  );
+
   const diasSemana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
   const getAulasDoDia = (dia: string, dataISO: string) => {
     const aulas: any[] = [];
 
-    disciplinas.forEach(d => {
+    disciplinasFiltradas.forEach(d => {
       if (!d.horarios) return;
       
-      // Malha Fina Temporal (Filtro de Semestre e Fallback para Legados)
+      // Validação de Semestre: Garante que a matéria só apareça se estiver no ciclo de vida dela
       let dentroDoSemestre = true;
       if (d.dataInicio && d.dataFim && !d.dataInicio.startsWith('0001')) {
-        
-        // Extrai apenas a porção YYYY-MM-DD das datas da disciplina
         const inicioStr = d.dataInicio.split('T')[0];
         const fimStr = d.dataFim.split('T')[0];
-
-        // Comparação Lexicográfica (Segura contra Timezones)
+        
+        // Se a data que estamos olhando na tela for menor que o inicio ou maior que o fim, bloqueia
         if (dataISO < inicioStr || dataISO > fimStr) {
           dentroDoSemestre = false;
         }
@@ -60,15 +69,17 @@ export function Painel() {
       if (!dentroDoSemestre) return;
 
       try {
-        const parsed = JSON.parse(d.horarios) as string[];
-        parsed.forEach(hStr => {
-          if (hStr.startsWith(dia)) {
-            const horario = hStr.replace(dia, '').trim();
-            aulas.push({ ...d, horarioRender: horario });
-          }
-        });
+        const parsed = JSON.parse(d.horarios);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(hStr => {
+            if (typeof hStr === 'string' && hStr.startsWith(dia)) {
+              const horario = hStr.replace(dia, '').trim();
+              aulas.push({ ...d, horarioRender: horario });
+            }
+          });
+        }
       } catch {
-        if (d.horarios.includes(dia)) {
+        if (typeof d.horarios === 'string' && d.horarios.includes(dia)) {
           aulas.push({ ...d, horarioRender: d.horarios });
         }
       }
@@ -76,13 +87,12 @@ export function Painel() {
     return aulas;
   };
 
-  // Calcula a data respeitando o weekOffset selecionado (Seguro contra Timezones)
   const getDataDoDia = (diaNome: string) => {
     const dataAlvo = new Date();
     dataAlvo.setDate(dataAlvo.getDate() + (weekOffset * 7));
     
     let diaAtualIndex = dataAlvo.getDay(); 
-    if (diaAtualIndex === 0) diaAtualIndex = 7; // Domingo passa a ser o último dia (7)
+    if (diaAtualIndex === 0) diaAtualIndex = 7; 
 
     const mapaDias: Record<string, number> = {
       "Segunda": 1, "Terça": 2, "Quarta": 3, "Quinta": 4, "Sexta": 5, "Sábado": 6, "Domingo": 7
@@ -94,7 +104,6 @@ export function Painel() {
     const targetDate = new Date(dataAlvo);
     targetDate.setDate(dataAlvo.getDate() + diff);
     
-    // Formatação robusta extraindo os valores locais diretos (Imune a Timezone Shift)
     const yyyy = targetDate.getFullYear();
     const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
     const dd = String(targetDate.getDate()).padStart(2, '0');
@@ -112,102 +121,80 @@ export function Painel() {
     return weekOffset > 0 ? `${weekOffset} semanas à frente` : `${Math.abs(weekOffset)} semanas atrás`;
   };
 
-  const perfil = localStorage.getItem('@SistemaPresenca:perfil');
-  const isCoordenacao = perfil === 'Coordenacao';
-
   return (
     <div className="flex flex-col gap-6">
-      
-      {/* Título e Controles */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">Grade de Aulas</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Grade de Aulas por Dia</h1>
             
-            {/* Navegação de Semanas */}
             <div className="flex items-center bg-white border border-gray-200 rounded-md p-1 shadow-sm">
-              <button 
-                onClick={() => setWeekOffset(prev => prev - 1)} 
-                className="p-1 hover:bg-gray-100 rounded text-gray-600 transition-colors"
-              >
+              <button onClick={() => setWeekOffset(prev => prev - 1)} className="p-1 hover:bg-gray-100 rounded text-gray-600 transition-colors">
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <span className="px-4 text-sm text-gray-700 font-medium min-w-[140px] text-center select-none">
                 {getWeekLabel()}
               </span>
-              <button 
-                onClick={() => setWeekOffset(prev => prev + 1)} 
-                className="p-1 hover:bg-gray-100 rounded text-gray-600 transition-colors"
-              >
+              <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-1 hover:bg-gray-100 rounded text-gray-600 transition-colors">
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">Visualize as aulas organizadas por dia da semana</p>
+          <p className="text-sm text-gray-500 mt-2">Visualize as disciplinas organizadas por dia da semana</p>
         </div>
         
         {isCoordenacao && (
-          <div className="w-40">
-            <Link to="/disciplinas/nova">
-              <Button variant="secondary" className="bg-[#0A0F1C] hover:bg-gray-800 text-white w-full py-2 rounded-md font-medium text-sm flex justify-center items-center">
-                <Plus className="w-4 h-4 mr-2" /> Nova Disciplina
-              </Button>
-            </Link>
+          <div className="w-44">
+            <Button variant="secondary" onClick={() => navigate('/disciplinas/nova')} className="bg-[#0A0F1C] hover:bg-gray-800 text-white w-full py-2.5 rounded-lg font-medium text-sm flex justify-center items-center transition-all">
+              <Plus className="w-4 h-4 mr-2" /> Nova Disciplina
+            </Button>
           </div>
         )}
       </div>
 
-      {/* Barra de Filtros */}
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-transparent rounded-md leading-5 bg-white shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Buscar disciplinas..."
-          />
+      <div className="relative w-full">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-4 w-4 text-gray-400" />
         </div>
-
-        <select className="block w-full md:w-48 pl-3 pr-10 py-2 text-base border-transparent shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white text-gray-700">
-          <option value="">Todas Categorias</option>
-        </select>
-
-        <select className="block w-full md:w-48 pl-3 pr-10 py-2 text-base border-transparent shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white text-gray-700">
-          <option value="">Todos os Níveis</option>
-        </select>
+        <input
+          type="text"
+          value={termoBusca}
+          onChange={(e) => setTermoBusca(e.target.value)}
+          className="block w-full pl-10 pr-3 py-2 border border-transparent rounded-md leading-5 bg-white shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          placeholder="Buscar disciplinas..."
+        />
       </div>
 
-      <p className="text-sm text-gray-500">{disciplinas.length} disciplinas encontradas</p>
+      <p className="text-sm text-gray-500">{disciplinasFiltradas.length} disciplinas encontradas</p>
 
-      {/* Grade de Aulas (CSS Grid Responsivo) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-start">
-        
         {diasSemana.map((dia) => {
           const { dataISO, dataVisual } = getDataDoDia(dia);
           const aulasDoDia = getAulasDoDia(dia, dataISO);
 
           return (
-            <DiaSemana key={dia} dia={dia} dataDia={dataVisual} quantidadeAulas={aulasDoDia.length} isHoje={dataISO === hojeISO}>
+            <DiaSemana 
+              key={dia} 
+              dia={dia} 
+              dataDia={dataVisual} 
+              dataISO={dataISO}
+              quantidadeAulas={aulasDoDia.length} 
+              isHoje={dataISO === hojeISO}
+            >
               {aulasDoDia.map((aula, index) => (
                 <AulaCard 
                   key={`${aula.id}-${index}`}
-                  disciplinaId={aula.id}
+                  id={aula.id} 
                   disciplina={aula.nome}
                   nivel="Geral"
                   horario={aula.horarioRender}
-                  professor={aula.professorNome}
+                  professor={aula.professorNome || 'Não atribuído'}
                   categoria="Disciplina"
-                  dataAula={dataISO}
-                  dataInicio={aula.dataInicio}
-                  dataFim={aula.dataFim}
                 />
               ))}
             </DiaSemana>
           );
         })}
-
       </div>
     </div>
   );

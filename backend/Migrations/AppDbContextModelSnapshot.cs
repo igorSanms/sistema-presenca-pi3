@@ -37,7 +37,7 @@ namespace backend.Migrations
                     b.Property<DateTime?>("DataResolucao")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("DisciplinaId")
+                    b.Property<Guid?>("DisciplinaId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Mensagem")
@@ -121,7 +121,7 @@ namespace backend.Migrations
                     b.Property<DateOnly>("Data")
                         .HasColumnType("date");
 
-                    b.Property<Guid>("DisciplinaId")
+                    b.Property<Guid?>("DisciplinaId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Horario")
@@ -285,9 +285,7 @@ namespace backend.Migrations
 
                     b.HasOne("backend.Models.Disciplina", "Disciplina")
                         .WithMany()
-                        .HasForeignKey("DisciplinaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("DisciplinaId");
 
                     b.HasOne("backend.Models.Usuario", "ResolvidoPor")
                         .WithMany()
@@ -324,8 +322,7 @@ namespace backend.Migrations
                     b.HasOne("backend.Models.Disciplina", "Disciplina")
                         .WithMany()
                         .HasForeignKey("DisciplinaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Disciplina");
                 });

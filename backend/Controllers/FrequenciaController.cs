@@ -26,38 +26,27 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<IActionResult> RealizarChamada([FromBody] RealizarChamadaRequestDTO request)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
+            // 1. Busca ou Cria o "Dia Letivo Unificado" (Disciplina nula)
             var aula = await _context.Aulas
-                .FirstOrDefaultAsync(a => a.DisciplinaId == request.DisciplinaId && a.Data == request.Data && a.Horario == request.Horario);
+                .FirstOrDefaultAsync(a => a.Data == request.Data && a.DisciplinaId == null);
 
             if (aula == null)
             {
-                var disciplina = await _context.Disciplinas.FindAsync(request.DisciplinaId);
-                if (disciplina == null)
-                {
-                    return BadRequest(new { Message = "Disciplina não encontrada." });
-                }
-
                 aula = new Aula
                 {
                     Id = Guid.NewGuid(),
-                    DisciplinaId = request.DisciplinaId,
+                    DisciplinaId = null, // Marcação de Chamada Global
                     Data = request.Data,
-                    Horario = request.Horario,
+                    Horario = "Turno Unico",
                     Conteudo = request.Conteudo
                 };
                 await _context.Aulas.AddAsync(aula);
             }
-            else
+            else if (request.Conteudo != null)
             {
-                if (request.Conteudo != null)
-                {
-                    aula.Conteudo = request.Conteudo;
-                }
+                aula.Conteudo = request.Conteudo;
             }
 
             var alunoIds = request.Alunos.Select(a => a.AlunoId).ToList();
@@ -72,13 +61,11 @@ namespace backend.Controllers
 
             foreach (var dto in request.Alunos)
             {
-                if (!alunosExistentes.TryGetValue(dto.AlunoId, out var aluno))
-                {
-                    continue;
-                }
+                if (!alunosExistentes.TryGetValue(dto.AlunoId, out var aluno)) continue;
 
                 if (registrosExistentes.TryGetValue(dto.AlunoId, out var registroExistente))
                 {
+                    // Lógica de Edição: Se mudou na tela, atualiza no banco
                     if (registroExistente.Status != dto.Status)
                     {
                         registroExistente.Status = dto.Status;
@@ -98,57 +85,59 @@ namespace backend.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Motor de Alertas (Regra de Negócio: 3 faltas)
+            // 2. Motor de Alertas Global (Regra de Negócio: 3 faltas)
             foreach (var dto in request.Alunos)
             {
-                var totalFaltas = await _context.RegistrosFrequencia
-                    .Include(r => r.Aula)
+                // Busca direta e leve apenas pelo AlunoId e Status
+                var totalFaltasGlobais = await _context.RegistrosFrequencia
                     .CountAsync(r => r.AlunoId == dto.AlunoId 
-                                  && r.Aula!.DisciplinaId == request.DisciplinaId 
                                   && r.Status == StatusPresenca.Falta);
 
-                if (totalFaltas >= 3)
+                if (totalFaltasGlobais >= 3)
                 {
-                    bool alertaExiste = await _context.Alertas
-                        .AnyAsync(a => a.AlunoId == dto.AlunoId 
-                                    && a.DisciplinaId == request.DisciplinaId 
-                                    && !a.Resolvido);
+                    bool alertaJaFoiGerado = await _context.Alertas
+                        .AnyAsync(a => a.AlunoId == dto.AlunoId);
 
-                    if (!alertaExiste)
+                    if (!alertaJaFoiGerado)
                     {
                         _context.Alertas.Add(new Alerta
                         {
                             AlunoId = dto.AlunoId,
-                            DisciplinaId = request.DisciplinaId,
-                            Mensagem = "O aluno ultrapassou o limite de 3 faltas."
+                            Mensagem = $"Alerta Global: O aluno atingiu {totalFaltasGlobais} faltas no cursinho."
                         });
+                    }
+                }
+                else
+                {
+                    var alertaExistente = await _context.Alertas
+                        .FirstOrDefaultAsync(a => a.AlunoId == dto.AlunoId);
+
+                    if (alertaExistente != null)
+                    {
+                        _context.Alertas.Remove(alertaExistente);
                     }
                 }
             }
             
-            // Salva os eventuais alertas gerados
             await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Chamada registrada com sucesso." });
+            return Ok(new { Message = "Chamada registrada/atualizada com sucesso." });
         }
 
         [HttpGet]
-        public async Task<IActionResult> ObterChamadaDoDia([FromQuery] DateOnly data, [FromQuery] Guid disciplinaId, [FromQuery] string horario)
+        public async Task<IActionResult> ObterChamadaDoDia([FromQuery] DateOnly data)
         {
-            var alunos = await _context.Alunos
-                .OrderBy(a => a.Nome)
-                .ToListAsync();
+            var alunos = await _context.Alunos.OrderBy(a => a.Nome).ToListAsync();
 
+            // Busca as presenças vinculadas apenas à data, ignorando disciplina
             var registrosQuery = _context.RegistrosFrequencia
                 .Include(r => r.Aula)
-                .Where(r => r.Aula != null && r.Aula.Data == data && r.Aula.DisciplinaId == disciplinaId && r.Aula.Horario == horario);
+                .Where(r => r.Aula != null && r.Aula.Data == data && r.Aula.DisciplinaId == null);
 
             var registros = await registrosQuery.ToDictionaryAsync(r => r.AlunoId);
 
             var response = alunos.Select(a =>
             {
                 registros.TryGetValue(a.Id, out var registro);
-                
                 return new AlunoChamadaResponseDTO
                 {
                     AlunoId = a.Id,
@@ -164,17 +153,13 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> JustificarFalta([FromBody] JustificarFaltaRequestDTO request)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var registro = await _context.RegistrosFrequencia
                 .Include(r => r.Aula)
                 .FirstOrDefaultAsync(r => r.AlunoId == request.AlunoId 
                                        && r.Aula!.Data == request.Data 
-                                       && r.Aula.DisciplinaId == request.DisciplinaId 
-                                       && r.Aula.Horario == request.Horario);
+                                       && r.Aula.DisciplinaId == null); // Garante que é a chamada global
 
             if (registro == null || registro.Status != StatusPresenca.Falta)
             {
@@ -182,7 +167,6 @@ namespace backend.Controllers
             }
 
             registro.Status = StatusPresenca.Justificada;
-
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Falta justificada com sucesso." });

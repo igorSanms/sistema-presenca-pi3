@@ -40,5 +40,10 @@ namespace backend.DTOs
         public string Email { get; set; } = string.Empty;
         public bool Ativo { get; set; }
         public List<AlunoDisciplinaResponseDTO> Disciplinas { get; set; } = new List<AlunoDisciplinaResponseDTO>();
+
+        public int Presencas { get; set; }
+        public int FaltasReais { get; set; }
+        public int FaltasJustificadas { get; set; }
+        public int TotalAulas { get; set; }
     }
 }

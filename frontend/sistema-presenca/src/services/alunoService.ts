@@ -1,14 +1,17 @@
 import { api } from './api';
 
-// Essa interface deve refletir o que o C# espera/retorna
+// Interface atualizada e blindada para o TypeScript aceitar os novos fluxos
 export interface AlunoData {
-  id?: string; // O C# costuma gerar um ID tipo Guid no banco
+  id?: string; 
   nome: string;
   email: string;
-  telefone: string;
+  telefone?: string;         // 👉 Transformado em opcional (?) para aceitar strings vazias ou undefined
+  matricula?: string;        // 👉 Adicionado para sumir o erro na tabela de Alunos
+  disciplinasIds?: string[]; // 👉 Adicionado para sumir o erro do payload no NovoAluno
   presencas?: number;
   faltasReais?: number;
   faltasJustificadas?: number;
+  disciplinas?: Array<{ id: string; nome: string }>; // 👉 Adicionado para mapear o retorno do C#
 }
 
 export const alunoService = {
@@ -30,8 +33,8 @@ export const alunoService = {
     return response.data;
   },
 
-  // Atualiza os dados do aluno
-  async atualizar(id: string, aluno: AlunoData) {
+  // Atualiza os dados do aluno (Utiliza Partial<AlunoData> para permitir pacotes de dados parciais)
+  async atualizar(id: string, aluno: Partial<AlunoData>) {
     const response = await api.put(`/Alunos/${id}`, aluno);
     return response.data;
   },

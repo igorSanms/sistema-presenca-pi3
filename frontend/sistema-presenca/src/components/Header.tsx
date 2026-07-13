@@ -1,57 +1,57 @@
 import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Users, UserSquare, BarChart, History, Bell, LogOut, GraduationCap } from 'lucide-react';
+import { BookOpen, Users, UserSquare, BarChart, Bell, LogOut, GraduationCap } from 'lucide-react';
 import { AuthContext } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
 export function Header() {
-  const { signOut, perfil, nome, email } = useContext(AuthContext); // <-- ADICIONEI NOME E EMAIL
+  const { signOut, perfil, nome, email } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
   const isActive = (path: string) => location.pathname.startsWith(path);
-  const [hasNewAlert, setHasNewAlert] = useState(false);
-  const [maxAlertDate, setMaxAlertDate] = useState<number | null>(null);
+  
+  const [alertCount, setAlertCount] = useState(0);
 
   useEffect(() => {
-    if (perfil === 'Coordenacao') {
-      api.get('/Alertas/Ativos')
-        .then(response => {
-          if (response.data && response.data.length > 0) {
-            const datas = response.data.map((a: any) => new Date(a.dataCriacao).getTime());
-            const maxData = Math.max(...datas);
-            setMaxAlertDate(maxData);
-
-            const ultimaVista = localStorage.getItem('@SistemaPresenca:lastSeenAlertDate');
-            if (!ultimaVista || maxData > parseInt(ultimaVista)) {
-                setHasNewAlert(true);
-            } else {
-                setHasNewAlert(false);
+    const fetchAlertas = () => {
+      // O backend já tem trava, mas garantimos que o front só busque se for Coordenação
+      if (perfil === 'Coordenacao') {
+        api.get('/Alertas/Ativos')
+          .then(response => {
+            if (response.data) {
+              setAlertCount(response.data.length);
             }
-          } else {
-            setHasNewAlert(false);
-          }
-        })
-        .catch(err => console.error("Erro ao carregar notificações de alertas:", err));
-    }
+          })
+          .catch(err => console.error("Erro ao carregar notificações de alertas:", err));
+      }
+    };
+
+    fetchAlertas();
+
+    const handleAlertaResolvido = () => {
+      setAlertCount(prev => Math.max(0, prev - 1));
+    };
+
+    window.addEventListener('alertaResolvido', handleAlertaResolvido);
+
+    return () => {
+      window.removeEventListener('alertaResolvido', handleAlertaResolvido);
+    };
   }, [perfil]);
 
   const navItemClass = (path: string) => 
     `flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-md transition-colors ${
       isActive(path) 
-        ? 'text-gray-900 bg-gray-100' // Fundo cinza se estiver ativo
-        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50' // Sem fundo se não estiver
+        ? 'text-gray-900 bg-gray-100'
+        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
     }`;
 
   const handleLogout = () => {
-    signOut(); // Limpa o token e o localStorage
-    navigate('/login'); // Joga o usuário de volta pra porta de entrada
+    signOut();
+    navigate('/login');
   };
 
   const handleBellClick = () => {
-    if (maxAlertDate) {
-        localStorage.setItem('@SistemaPresenca:lastSeenAlertDate', maxAlertDate.toString());
-        setHasNewAlert(false);
-    }
     navigate('/relatorios?aba=alertas');
   };
 
@@ -79,25 +79,32 @@ export function Header() {
         <Link to="/professores" className={navItemClass('/professores')}>
           <UserSquare className="w-4 h-4" /> Professores
         </Link>
-        <Link to="/relatorios" className={navItemClass('/relatorios')}>
-          <BarChart className="w-4 h-4" /> Relatórios
-        </Link>
+        
+        {perfil !== 'Professor' && (
+          <Link to="/relatorios" className={navItemClass('/relatorios')}>
+            <BarChart className="w-4 h-4" /> Relatórios
+          </Link>
+        )}
       </nav>
 
       {/* Ações do Usuário */}
       <div className="flex items-center gap-4">
-        <button onClick={handleBellClick} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors border border-gray-200">
-          <div className="relative">
-            <Bell className="w-5 h-5" />
-            {hasNewAlert && (
-              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500"></span>
-            )}
-          </div>
-        </button>
+        
+        {perfil !== 'Professor' && (
+          <button onClick={handleBellClick} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors border border-gray-200">
+            <div className="relative">
+              <Bell className="w-5 h-5" />
+              {alertCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                  {alertCount > 9 ? '9+' : alertCount}
+                </span>
+              )}
+            </div>
+          </button>
+        )}
         
         <div className="flex items-center gap-3 border-l border-gray-200 pl-4">
           <div className="text-right hidden sm:block">
-            {/* Como não pegamos o nome do banco ainda, usamos o perfil */}
             <p className="text-sm font-bold text-gray-900 capitalize">{nome || 'Usuário'}</p>
             <p className="text-xs text-gray-500">{email || 'usuario@sistema.com'}</p>
           </div>
