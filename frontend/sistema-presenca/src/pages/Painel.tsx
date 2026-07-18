@@ -53,20 +53,17 @@ export function Painel() {
 
     disciplinasFiltradas.forEach(d => {
       if (!d.horarios) return;
-      
-      // Validação de Semestre: Garante que a matéria só apareça se estiver no ciclo de vida dela
+      // Calculamos se a disciplina está dentro do semestre letivo, 
+      // mas removemos o "return" que escondia ela da tela!
       let dentroDoSemestre = true;
       if (d.dataInicio && d.dataFim && !d.dataInicio.startsWith('0001')) {
         const inicioStr = d.dataInicio.split('T')[0];
         const fimStr = d.dataFim.split('T')[0];
         
-        // Se a data que estamos olhando na tela for menor que o inicio ou maior que o fim, bloqueia
         if (dataISO < inicioStr || dataISO > fimStr) {
           dentroDoSemestre = false;
         }
       }
-
-      if (!dentroDoSemestre) return;
 
       try {
         const parsed = JSON.parse(d.horarios);
@@ -74,13 +71,14 @@ export function Painel() {
           parsed.forEach(hStr => {
             if (typeof hStr === 'string' && hStr.startsWith(dia)) {
               const horario = hStr.replace(dia, '').trim();
-              aulas.push({ ...d, horarioRender: horario });
+              // Guardamos a flag "ativaNestaData" caso o AulaCard precise dela no futuro
+              aulas.push({ ...d, horarioRender: horario, ativaNestaData: dentroDoSemestre });
             }
           });
         }
       } catch {
         if (typeof d.horarios === 'string' && d.horarios.includes(dia)) {
-          aulas.push({ ...d, horarioRender: d.horarios });
+          aulas.push({ ...d, horarioRender: d.horarios, ativaNestaData: dentroDoSemestre });
         }
       }
     });

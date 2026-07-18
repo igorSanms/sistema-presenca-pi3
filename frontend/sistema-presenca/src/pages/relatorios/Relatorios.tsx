@@ -109,11 +109,12 @@ export function Relatorios() {
       const loadHistorico = async () => {
         try {
           setCarregandoHistorico(true);
-          // Busca os alunos para pegar matrícula e e-mail
+          
+          // 1. Busca os alunos apenas para servir como um "dicionário" para pegar matrícula e e-mail depois
           const alunosResponse = await api.get('/Alunos');
           const listaAlunos = alunosResponse.data || [];
 
-          // Busca a chamada salva no banco para a data selecionada
+          // 2. Busca a chamada que vem do backend
           let frequenciaData: any[] = [];
           try {
             const frequenciaResponse = await api.get('/Frequencia', { params: { data: dataHistorico } });
@@ -122,21 +123,32 @@ export function Relatorios() {
             console.log('Nenhuma chamada encontrada para esta data.');
           }
 
-          // Merge para construir a tabela visual
-          const historicoMapeado: HistoricoAluno[] = listaAlunos.map((alunoBase: any) => {
-            const baseId = alunoBase.id || alunoBase.Id;
-            const registro = frequenciaData.find((f: any) => (f.alunoId || f.AlunoId) === baseId);
+          // 👉 O GRANDE SEGREDO: Filtra a lista deixando APENAS quem tem um status salvo no banco (diferente de null/undefined)
+          const registrosReais = frequenciaData.filter((f: any) => f.status != null || f.Status != null);
+
+          // Se NINGUÉM tem registro, significa que a chamada não foi feita. A tela fica zerada e bloqueada!
+          if (registrosReais.length === 0) {
+            setHistoricoChamada([]);
+            setCarregandoHistorico(false);
+            return; 
+          }
+
+          // Se a chamada foi feita, a tabela é desenhada APENAS com quem está em "registrosReais".
+          // O Aluno 2 recém-cadastrado é ignorado porque ele não tem registro para esse dia!
+          const historicoMapeado: HistoricoAluno[] = registrosReais.map((registro: any) => {
+            const regId = registro.alunoId || registro.AlunoId;
+            const statusRegistro = registro.status != null ? registro.status : registro.Status;
             
+            // Procura o aluno no "dicionário" para pegar os dados visuais (email e matrícula)
+            const alunoBase = listaAlunos.find((a: any) => (a.id || a.Id) === regId) || {};
+
             let statusConvertido = 0; // Padrão Presente
-            if (registro) {
-              const statusRegistro = registro.status || registro.Status;
-              if (statusRegistro === 'Falta' || statusRegistro === 1) statusConvertido = 1;
-              else if (statusRegistro === 'Justificada' || statusRegistro === 2) statusConvertido = 2;
-            }
+            if (statusRegistro === 'Falta' || statusRegistro === 1) statusConvertido = 1;
+            else if (statusRegistro === 'Justificada' || statusRegistro === 2) statusConvertido = 2;
 
             return {
-              id: baseId,
-              nome: alunoBase.nome || alunoBase.Nome,
+              id: regId,
+              nome: alunoBase.nome || alunoBase.Nome || registro.nome || registro.Nome || 'Aluno Desconhecido',
               matricula: alunoBase.matricula || alunoBase.Matricula || 'Sem Matrícula',
               email: alunoBase.email || alunoBase.Email || '',
               status: statusConvertido,
@@ -202,9 +214,85 @@ export function Relatorios() {
     return `${dia} de ${meses[parseInt(mes) - 1]} de ${ano}`;
   };
 
-  // Funções de download (Alunos / Disciplinas)
-  const handleDownloadAlunos = async () => { /* ... (mantido do original) ... */ };
-  const handleDownloadDisciplinas = async () => { /* ... (mantido do original) ... */ };
+  const handleDownloadAlunos = async () => {
+    try {
+      setBaixandoAlunos(true);
+      const { data } = await api.get('/Alunos');
+      
+      if (!data || data.length === 0) {
+        alert('Nenhum aluno encontrado para exportar.');
+        return;
+      }
+      // Monta o cabeçalho do CSV
+      let csvContent = "ID,Nome,Matricula,Email\n";
+      // Percorre os alunos e monta as linhas
+      data.forEach((aluno: any) => {
+        // As aspas protegem contra nomes ou emails que possam ter vírgulas acidentalmente
+        const nome = `"${aluno.nome || aluno.Nome || ''}"`;
+        const matricula = `"${aluno.matricula || aluno.Matricula || 'Sem matricula'}"`;
+        const email = `"${aluno.email || aluno.Email || ''}"`;
+        
+        csvContent += `${aluno.id || aluno.Id},${nome},${matricula},${email}\n`;
+      });
+
+      // Cria o arquivo em memória e força o navegador a fazer o download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `relatorio_alunos_${hojeISO}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (error) {
+      console.error('Erro ao exportar alunos:', error);
+      alert('Erro ao gerar relatório de alunos. Verifique sua conexão.');
+    } finally {
+      setBaixandoAlunos(false);
+    }
+  };
+
+  const handleDownloadDisciplinas = async () => {
+    try {
+      setBaixandoDisciplinas(true);
+      const { data } = await api.get('/Disciplinas');
+      
+      if (!data || data.length === 0) {
+        alert('Nenhuma disciplina encontrada para exportar.');
+        return;
+      }
+
+      // Monta o cabeçalho do CSV
+      let csvContent = "ID,Nome,Data Inicio,Data Fim\n";
+
+      // Percorre as disciplinas e monta as linhas
+      data.forEach((d: any) => {
+        const nome = `"${d.nome || d.Nome || ''}"`;
+        // Pegando apenas a data (YYYY-MM-DD) se existir
+        const inicio = `"${d.dataInicio ? d.dataInicio.split('T')[0] : ''}"`;
+        const fim = `"${d.dataFim ? d.dataFim.split('T')[0] : ''}"`;
+        
+        csvContent += `${d.id || d.Id},${nome},${inicio},${fim}\n`;
+      });
+
+      // Cria o arquivo e baixa
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `matriz_curricular_${hojeISO}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (error) {
+      console.error('Erro ao exportar disciplinas:', error);
+      alert('Erro ao gerar matriz curricular. Verifique sua conexão.');
+    } finally {
+      setBaixandoDisciplinas(false);
+    }
+  };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {

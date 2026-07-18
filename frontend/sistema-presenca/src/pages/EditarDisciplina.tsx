@@ -87,14 +87,53 @@ export function EditarDisciplina() {
     setHorarios(horarios.map(h => h.id === id ? { ...h, [campo]: valor } : h));
   };
 
+  const handleRemoveHorario = (id: number) => {
+    setHorarios(horarios.filter(h => h.id !== id));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const novosErros: Record<string, string> = {};
 
+    // 1. Validação
     if (!formData.titulo) novosErros.titulo = 'Título é obrigatório';
     if (!formData.professor) novosErros.professor = 'Professor é obrigatório';
     if (!formData.dataInicio) novosErros.dataInicio = 'Data de início é obrigatória';
     if (!formData.dataFim) novosErros.dataFim = 'Data de término é obrigatória';
+
+    // 2. Trava de Datas Invertidas
+    if (formData.dataInicio && formData.dataFim && formData.dataFim < formData.dataInicio) {
+      novosErros.dataFim = 'A data de término não pode ser anterior à data de início.';
+    }
+
+    // 3. Validações da Grade de Horários
+    if (horarios.length === 0) {
+      novosErros.horarios = 'Adicione ao menos um horário';
+    } else {
+      const horarioIncompleto = horarios.some(h => !h.inicio || !h.termino);
+      if (horarioIncompleto) {
+        novosErros.horarios = 'Preencha a hora de início e término para todos os dias.';
+      } else {
+        const horarioInvertido = horarios.some(h => h.inicio >= h.termino);
+        if (horarioInvertido) {
+          novosErros.horarios = 'A hora de término deve ser sempre posterior à hora de início.';
+        } else {
+          let temConflito = false;
+          for (let i = 0; i < horarios.length; i++) {
+            for (let j = i + 1; j < horarios.length; j++) {
+              if (horarios[i].dia === horarios[j].dia) {
+                if (horarios[i].inicio < horarios[j].termino && horarios[i].termino > horarios[j].inicio) {
+                  temConflito = true;
+                  break;
+                }
+              }
+            }
+            if (temConflito) break;
+          }
+          if (temConflito) novosErros.horarios = 'Você cadastrou horários duplicados ou conflitantes no mesmo dia.';
+        }
+      }
+    }
 
     if (Object.keys(novosErros).length > 0) {
       setErros(novosErros);
@@ -208,6 +247,8 @@ export function EditarDisciplina() {
               </Button>
             </div>
 
+            {erros.horarios && <span className="text-[#ff6b6b] text-xs mb-3 block font-medium">{erros.horarios}</span>}
+
             {horarios.length === 0 ? (
               <div className="border border-gray-200 rounded-xl p-10 flex flex-col items-center justify-center text-gray-500 bg-gray-50/50">
                 <Clock className="w-10 h-10 mb-3 text-gray-400" />
@@ -217,7 +258,12 @@ export function EditarDisciplina() {
               <div className="flex flex-col gap-4">
                 {horarios.map((horario, index) => (
                   <div key={horario.id} className="border border-gray-200 rounded-xl p-6 relative bg-white shadow-sm">
-                    <h4 className="text-sm font-bold text-gray-900 mb-4">Horário {index + 1}</h4>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-sm font-bold text-gray-900">Horário {index + 1}</h4>
+                      <button type="button" onClick={() => handleRemoveHorario(horario.id)} className="text-red-400 hover:text-red-600 transition-colors" title="Remover horário">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-2">Dia da semana</label>

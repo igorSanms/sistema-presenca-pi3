@@ -60,13 +60,44 @@ export function NovaDisciplina() {
     e.preventDefault();
     const novosErros: Record<string, string> = {};
 
+    // 1. Validação de Campos Obrigatórios
     if (!formData.nome.trim()) novosErros.nome = 'Nome da disciplina é obrigatório';
     if (!formData.professor) novosErros.professor = 'Professor é obrigatório';
     if (!formData.dataInicio) novosErros.dataInicio = 'Data de início é obrigatória';
     if (!formData.dataFim) novosErros.dataFim = 'Data de término é obrigatória';
 
+    // 2. Trava de Datas Invertidas
+    if (formData.dataInicio && formData.dataFim && formData.dataFim < formData.dataInicio) {
+      novosErros.dataFim = 'A data de término não pode ser anterior à data de início.';
+    }
+
+    // 3. Validações da Grade de Horários
     if (horarios.length === 0) {
       novosErros.horarios = 'Adicione ao menos um horário';
+    } else {
+      const horarioIncompleto = horarios.some(h => !h.inicio || !h.termino);
+      if (horarioIncompleto) {
+        novosErros.horarios = 'Preencha a hora de início e término para todos os dias.';
+      } else {
+        const horarioInvertido = horarios.some(h => h.inicio >= h.termino);
+        if (horarioInvertido) {
+          novosErros.horarios = 'A hora de término deve ser sempre posterior à hora de início.';
+        } else {
+          let temConflito = false;
+          for (let i = 0; i < horarios.length; i++) {
+            for (let j = i + 1; j < horarios.length; j++) {
+              if (horarios[i].dia === horarios[j].dia) {
+                if (horarios[i].inicio < horarios[j].termino && horarios[i].termino > horarios[j].inicio) {
+                  temConflito = true;
+                  break;
+                }
+              }
+            }
+            if (temConflito) break;
+          }
+          if (temConflito) novosErros.horarios = 'Você cadastrou horários duplicados ou conflitantes no mesmo dia.';
+        }
+      }
     }
 
     if (Object.keys(novosErros).length > 0) {
@@ -131,10 +162,12 @@ export function NovaDisciplina() {
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-2">Data Início *</label>
               <input type="date" name="dataInicio" value={formData.dataInicio} onChange={handleChange} className={inputClass('dataInicio')} />
+              {erros.dataInicio && <span className="text-[#ff6b6b] text-xs mt-1 block font-medium">{erros.dataInicio}</span>}
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-2">Data Fim *</label>
               <input type="date" name="dataFim" value={formData.dataFim} onChange={handleChange} className={inputClass('dataFim')} />
+              {erros.dataFim && <span className="text-[#ff6b6b] text-xs mt-1 block font-medium">{erros.dataFim}</span>}
             </div>
           </div>
 
