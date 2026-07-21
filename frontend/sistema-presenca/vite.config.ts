@@ -10,6 +10,14 @@ export default defineConfig({
   ],
   // NOVA CONFIGURAÇÃO DE SERVIDOR
   server: {
+    host: true, // Expõe o Vite para fora do Docker
+    port: 5173,
+    watch: {
+      usePolling: true, // Força o Docker a enxergar quando você salva o arquivo
+    },
+    hmr: {
+      clientPort: 5173, // Garante que o navegador ache a conexão de atualização ao vivo
+    },
     proxy: {
       '/api': {
         target: process.env.BACKEND_URL || 'http://localhost:5249', // Usa env var no Docker, ou localhost fora dele

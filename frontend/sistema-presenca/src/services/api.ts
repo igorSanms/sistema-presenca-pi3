@@ -24,18 +24,26 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error("Sessão expirada ou não autorizada.");
-      localStorage.removeItem('@SistemaPresenca:token');
-      localStorage.removeItem('@SistemaPresenca:perfil');
-      localStorage.removeItem('@SistemaPresenca:nome');
-      localStorage.removeItem('@SistemaPresenca:email');
-      
-      alert('Sessão expirada. Por favor, faça login novamente.');
-      window.location.href = '/';
+      // Verifica se o erro 401 veio da rota de login
+      const isLoginRequest = error.config?.url?.toLowerCase().includes('login');
+
+      // Só derruba a sessão e exibe o alert se NÃO for uma tentativa de login
+      if (!isLoginRequest) {
+        console.error("Sessão expirada ou não autorizada.");
+        localStorage.removeItem('@SistemaPresenca:token');
+        localStorage.removeItem('@SistemaPresenca:perfil');
+        localStorage.removeItem('@SistemaPresenca:nome');
+        localStorage.removeItem('@SistemaPresenca:email');
+        
+        alert('Sessão expirada. Por favor, faça login novamente.');
+        window.location.href = '/';
+      }
     } else if (error.response?.status === 403) {
       alert('Acesso negado. Você não tem permissão para realizar esta ação.');
       window.location.href = '/painel';
     }
+    
+    // Passa o erro para frente para que o Catch do Login consiga pegar!
     return Promise.reject(error);
   }
 );

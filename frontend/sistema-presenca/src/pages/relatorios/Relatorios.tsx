@@ -94,8 +94,30 @@ export function Relatorios() {
         try {
           setCarregandoAlertas(true);
           setErroAlertas(null);
+
+          // 1. Busca os alunos para sabermos quem realmente está ativo no sistema
+          const alunosResponse = await api.get('/Alunos');
+          const listaAlunos = alunosResponse.data || [];
+
+          // 2. Busca todos os alertas gerados pelo backend
           const { data } = await api.get('/Alertas/Ativos');
-          setAlertas(data || []);
+          const alertasData = data || [];
+
+          // 👉 NOVA TRAVA DE SEGURANÇA: Filtra os alertas deixando apenas os de alunos ativos
+          const alertasDeAlunosAtivos = alertasData.filter((alerta: any) => {
+            // Cruzamento ESTRITO pelo ID único (removemos a falha do nome)
+            const alertaAlunoId = alerta.alunoId || alerta.AlunoId;
+            
+            if (!alertaAlunoId) return false;
+
+            const alunoExiste = listaAlunos.find((a: any) => (a.id || a.Id) === alertaAlunoId);
+            
+            return alunoExiste && alunoExiste.ativo !== false && alunoExiste.Ativo !== false;
+          });
+
+          // 3. Salva no estado apenas os alertas validados
+          setAlertas(alertasDeAlunosAtivos);
+
         } catch (error) {
           console.error("Erro ao buscar alertas:", error);
           setErroAlertas('Não foi possível carregar os alertas de infrequência.');
@@ -110,11 +132,11 @@ export function Relatorios() {
         try {
           setCarregandoHistorico(true);
           
-          // 1. Busca os alunos apenas para servir como um "dicionário" para pegar matrícula e e-mail depois
+          // 1. Busca os alunos no banco de dados (Essas linhas estavam faltando)
           const alunosResponse = await api.get('/Alunos');
           const listaAlunos = alunosResponse.data || [];
 
-          // 2. Busca a chamada que vem do backend
+          // 2. Busca a chamada que vem do backend (Essas linhas também estavam faltando)
           let frequenciaData: any[] = [];
           try {
             const frequenciaResponse = await api.get('/Frequencia', { params: { data: dataHistorico } });
@@ -123,23 +145,33 @@ export function Relatorios() {
             console.log('Nenhuma chamada encontrada para esta data.');
           }
 
-          // 👉 O GRANDE SEGREDO: Filtra a lista deixando APENAS quem tem um status salvo no banco (diferente de null/undefined)
+          // 👉 O GRANDE SEGREDO: Filtra a lista deixando APENAS quem tem um status salvo no banco
           const registrosReais = frequenciaData.filter((f: any) => f.status != null || f.Status != null);
 
-          // Se NINGUÉM tem registro, significa que a chamada não foi feita. A tela fica zerada e bloqueada!
-          if (registrosReais.length === 0) {
+          // 👉 NOVA TRAVA DE SEGURANÇA: Remove os registros de alunos desativados/excluídos
+          const registrosDeAlunosAtivos = registrosReais.filter((registro: any) => {
+            const regId = registro.alunoId || registro.AlunoId;
+            
+            // Procura o aluno na lista do backend
+            const alunoExiste = listaAlunos.find((a: any) => (a.id || a.Id) === regId);
+            
+            // Só deixa passar se o aluno existir na lista E não estiver marcado como inativo
+            return alunoExiste && alunoExiste.ativo !== false && alunoExiste.Ativo !== false;
+          });
+
+          // Se NINGUÉM tem registro (ou se todos os registros daquele dia eram de alunos já excluídos)
+          if (registrosDeAlunosAtivos.length === 0) {
             setHistoricoChamada([]);
             setCarregandoHistorico(false);
             return; 
           }
 
-          // Se a chamada foi feita, a tabela é desenhada APENAS com quem está em "registrosReais".
-          // O Aluno 2 recém-cadastrado é ignorado porque ele não tem registro para esse dia!
-          const historicoMapeado: HistoricoAluno[] = registrosReais.map((registro: any) => {
+          // A tabela agora é desenhada APENAS com quem passou na nova trava de alunos ativos
+          const historicoMapeado: HistoricoAluno[] = registrosDeAlunosAtivos.map((registro: any) => {
             const regId = registro.alunoId || registro.AlunoId;
             const statusRegistro = registro.status != null ? registro.status : registro.Status;
             
-            // Procura o aluno no "dicionário" para pegar os dados visuais (email e matrícula)
+            // Aqui temos certeza absoluta que o aluno existe, pois filtramos logo acima
             const alunoBase = listaAlunos.find((a: any) => (a.id || a.Id) === regId) || {};
 
             let statusConvertido = 0; // Padrão Presente
@@ -148,7 +180,7 @@ export function Relatorios() {
 
             return {
               id: regId,
-              nome: alunoBase.nome || alunoBase.Nome || registro.nome || registro.Nome || 'Aluno Desconhecido',
+              nome: alunoBase.nome || alunoBase.Nome || 'Aluno Desconhecido',
               matricula: alunoBase.matricula || alunoBase.Matricula || 'Sem Matrícula',
               email: alunoBase.email || alunoBase.Email || '',
               status: statusConvertido,
@@ -566,7 +598,6 @@ export function Relatorios() {
                    <thead>
                      <tr className="border-b border-gray-200 text-sm font-bold text-gray-900">
                        <th className="pb-3 px-4">Aluno</th>
-                       <th className="pb-3 px-4">Disciplina</th>
                        <th className="pb-3 px-4">Mensagem</th>
                        <th className="pb-3 px-4">Data</th>
                        <th className="pb-3 px-4 text-right">Ação</th>
@@ -576,7 +607,6 @@ export function Relatorios() {
                      {alertas.map((alerta) => (
                        <tr key={alerta.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                          <td className="py-4 px-4 font-medium text-gray-900">{alerta.alunoNome}</td>
-                         <td className="py-4 px-4 text-gray-500">{alerta.disciplinaNome || '-'}</td>
                          <td className="py-4 px-4 text-red-600 font-medium">{alerta.mensagem}</td>
                          <td className="py-4 px-4 text-gray-500">{new Date(alerta.dataCriacao).toLocaleDateString()}</td>
                          <td className="py-4 px-4 text-right">

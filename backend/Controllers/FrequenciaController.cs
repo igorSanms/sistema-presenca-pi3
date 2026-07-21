@@ -103,7 +103,7 @@ namespace backend.Controllers
                         _context.Alertas.Add(new Alerta
                         {
                             AlunoId = dto.AlunoId,
-                            Mensagem = $"Alerta Global: O aluno atingiu {totalFaltasGlobais} faltas no cursinho."
+                            Mensagem = $"O aluno atingiu {totalFaltasGlobais} faltas."
                         });
                     }
                 }

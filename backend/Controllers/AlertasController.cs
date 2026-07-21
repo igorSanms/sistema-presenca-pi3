@@ -34,6 +34,7 @@ namespace backend.Controllers
                 .Select(a => new
                 {
                     Id = a.Id,
+                    AlunoId = a.AlunoId,
                     AlunoNome = a.Aluno != null ? a.Aluno.Nome : "Sem Nome",
                     DisciplinaNome = a.Disciplina != null ? a.Disciplina.Nome : "Sem Disciplina",
                     Mensagem = a.Mensagem,

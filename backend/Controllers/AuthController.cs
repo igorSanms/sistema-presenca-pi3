@@ -144,7 +144,7 @@ namespace backend.Controllers
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddHours(2),
+                expires: DateTime.Now.AddHours(3),
                 signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
