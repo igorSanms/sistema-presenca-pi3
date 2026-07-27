@@ -9,10 +9,9 @@ namespace backend.DTOs
         [Required(ErrorMessage = "O nome é obrigatório.")]
         [MaxLength(200)]
         public string Nome { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "O email é obrigatório.")]
-        public string Email { get; set; } = string.Empty;
-
+        public string? Email { get; set; }
+        [MaxLength(20)]
+        public string? Telefone { get; set; }
         public List<Guid>? DisciplinasIds { get; set; }
     }
 
@@ -21,9 +20,9 @@ namespace backend.DTOs
         [Required(ErrorMessage = "O nome é obrigatório.")]
         [MaxLength(200)]
         public string Nome { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "O email é obrigatório.")]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        [MaxLength(20)]
+        public string? Telefone { get; set; }
     }
 
     public class AlunoDisciplinaResponseDTO
@@ -37,7 +36,8 @@ namespace backend.DTOs
         public Guid Id { get; set; }
         public string Nome { get; set; } = string.Empty;
         public string Matricula { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? Telefone { get; set; }
         public bool Ativo { get; set; }
         public List<AlunoDisciplinaResponseDTO> Disciplinas { get; set; } = new List<AlunoDisciplinaResponseDTO>();
 

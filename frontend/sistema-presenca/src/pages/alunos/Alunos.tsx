@@ -32,7 +32,9 @@ export function Alunos() {
     if (window.confirm(`Tem certeza que deseja excluir o aluno ${nome}?`)) {
       try {
         await alunoService.excluir(id);
-        setAlunos(alunos.filter(aluno => aluno.id !== id));
+      
+        window.location.reload();
+        
       } catch (error) {
         console.error('Erro ao excluir:', error);
         alert('Erro ao excluir aluno. Pode haver dados vinculados a ele.');
@@ -42,10 +44,12 @@ export function Alunos() {
 
   const alunosFiltrados = alunos.filter(aluno => {
     const termo = termoBusca.toLowerCase();
+    const matriculaNaTela = aluno.matricula || (aluno.id ? aluno.id.substring(0, 8).toLowerCase() : '');
     return (
       (aluno.nome && aluno.nome.toLowerCase().includes(termo)) ||
-      (aluno.id && aluno.id.toLowerCase().includes(termo)) ||
-      (aluno.email && aluno.email.toLowerCase().includes(termo))
+      (matriculaNaTela.toLowerCase().includes(termo)) ||
+      (aluno.email && aluno.email.toLowerCase().includes(termo)) ||
+      (aluno.telefone && aluno.telefone.toLowerCase().includes(termo))
     );
   });
 
@@ -76,7 +80,7 @@ export function Alunos() {
             value={termoBusca}
             onChange={(e) => setTermoBusca(e.target.value)}
             className="block w-full pl-10 pr-3 py-2 border border-gray-100 rounded-md bg-gray-50 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-            placeholder="Buscar por nome, email ou matrícula..."
+            placeholder="Buscar por nome, email, matrícula ou telefone..."
           />
         </div>
 
@@ -114,7 +118,7 @@ export function Alunos() {
                     <tr key={aluno.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                       <td className="py-4 px-4 font-bold">{matricula}</td>
                       <td className="py-4 px-4">{aluno.nome}</td>
-                      <td className="py-4 px-4 text-gray-500">{aluno.email}</td>
+                      <td className="py-4 px-4 text-gray-500">{aluno.email || 'Não informado'}</td>
                       <td className="py-4 px-4 text-gray-500">{aluno.telefone || 'Não informado'}</td>
                       <td className="py-4 px-4 text-center text-green-600 font-medium">{aluno.presencas || 0}</td>
                       <td className="py-4 px-4 text-center text-red-600 font-medium">{aluno.faltasReais || 0}</td>

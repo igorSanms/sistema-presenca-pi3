@@ -16,7 +16,6 @@ namespace backend.DTOs
 
         [Required]
         public Perfil Perfil { get; set; }
-
         public string? Telefone { get; set; }
         public string? AreaAtuacao { get; set; }
     }

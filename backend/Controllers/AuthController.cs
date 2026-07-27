@@ -43,7 +43,8 @@ namespace backend.Controllers
                     Email = request.Email,
                     SenhaHash = BCrypt.Net.BCrypt.HashPassword(request.Senha),
                     Perfil = request.Perfil,
-                    Telefone = request.Telefone,
+                    // 👉 Se o telefone vier vazio, força a ser gravado como [null] no banco
+                    Telefone = string.IsNullOrWhiteSpace(request.Telefone) ? null : request.Telefone,
                     AreaAtuacao = request.AreaAtuacao
                 };
             }
@@ -96,6 +97,7 @@ namespace backend.Controllers
                     Id = p.Id,
                     Nome = p.Nome,
                     Email = p.Email,
+                    Telefone = p.Telefone, // 👉 Agora o backend devolve o telefone para o site
                     AreaAtuacao = string.IsNullOrEmpty(p.AreaAtuacao) ? "Não informada" : p.AreaAtuacao
                 })
                 .ToListAsync();
@@ -183,6 +185,69 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Coordenador inativado com sucesso." });
+        }
+
+        [Authorize]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetUsuarioById(Guid id)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null || !usuario.Ativo)
+                return NotFound(new { Message = "Usuário não encontrado." });
+
+            if (usuario.Email.ToLower() == "admin@gmail.com")
+            {
+                return BadRequest(new { Message = "O administrador padrão do sistema não pode ser editado." });
+            }
+
+            return Ok(new
+            {
+                Id = usuario.Id,
+                Nome = usuario.Nome,
+                Email = usuario.Email,
+                Perfil = usuario.Perfil.ToString(),
+                Telefone = usuario is Professor p ? p.Telefone : null,
+                AreaAtuacao = usuario is Professor prof ? prof.AreaAtuacao : null
+            });
+        }
+
+        [Authorize(Roles = "Coordenacao")]
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUsuario(Guid id, [FromBody] UpdateUsuarioRequest request)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null || !usuario.Ativo)
+                return NotFound(new { Message = "Usuário não encontrado." });
+
+            // 👉 TRAVA DE SEGURANÇA: Impede edição do administrador padrão
+            if (usuario.Email.ToLower() == "admin@gmail.com")
+            {
+                return BadRequest(new { Message = "Não é permitido alterar os dados do administrador padrão do sistema." });
+            }
+
+            // 👉 TRAVA DE E-MAIL DUPLICADO
+            if (!string.IsNullOrWhiteSpace(request.Email))
+            {
+                var emailEmUso = await _context.Usuarios.AnyAsync(u => u.Email.ToLower() == request.Email.ToLower() && u.Id != id);
+                if (emailEmUso)
+                {
+                    return BadRequest(new { Message = "Este e-mail já está em uso por outro profissional." });
+                }
+            }
+
+            // Atualiza campos comuns
+            usuario.Nome = request.Nome;
+            usuario.Email = request.Email;
+
+            // Se for professor, atualiza os campos extras (Coordenador não entra aqui)
+            if (usuario is Professor professor)
+            {
+                professor.Telefone = string.IsNullOrWhiteSpace(request.Telefone) ? null : request.Telefone;
+                professor.AreaAtuacao = request.AreaAtuacao;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { Message = "Cadastro atualizado com sucesso." });
         }
     }
 }

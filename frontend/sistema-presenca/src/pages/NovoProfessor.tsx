@@ -13,12 +13,11 @@ export function NovoProfessor() {
     senha: '',
     telefone: '',
     areaAtuacao: '',
-    perfil: 'Professor' // Padrão: Professor
+    perfil: 'Professor'
   });
   
   const [erros, setErros] = useState<Record<string, string>>({});
 
-  // Gera uma senha aleatória alfanumérica minúscula (8 caracteres)
   useEffect(() => {
     const gerarSenha = () => {
       const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -32,10 +31,26 @@ export function NovoProfessor() {
     setFormData(prev => ({ ...prev, senha: gerarSenha() }));
   }, []);
 
+  // 👉 Função de máscara adicionada
+  const formatarTelefone = (valor: string) => {
+    if (!valor) return "";
+    let telefone = valor.replace(/\D/g, ""); 
+    if (telefone.length <= 2) return `(${telefone}`;
+    if (telefone.length <= 7) return `(${telefone.slice(0, 2)}) ${telefone.slice(2)}`;
+    return `(${telefone.slice(0, 2)}) ${telefone.slice(2, 7)}-${telefone.slice(7, 11)}`;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    if (erros[e.target.name]) {
-      setErros({ ...erros, [e.target.name]: '' });
+    let { name, value } = e.target;
+    
+    // 👉 Aplica a máscara se for o campo de telefone
+    if (name === 'telefone') {
+      value = formatarTelefone(value);
+    }
+
+    setFormData({ ...formData, [name]: value });
+    if (erros[name]) {
+      setErros({ ...erros, [name]: '' });
     }
   };
 
@@ -46,7 +61,6 @@ export function NovoProfessor() {
     if (!formData.nome) novosErros.nome = 'Nome é obrigatório';
     if (!formData.email) novosErros.email = 'Email é obrigatório';
     
-    // Área de atuação só é obrigatória se for Professor
     if (formData.perfil === 'Professor' && !formData.areaAtuacao) {
       novosErros.areaAtuacao = 'Área de Atuação é obrigatória';
     }
@@ -57,11 +71,11 @@ export function NovoProfessor() {
     }
 
     try {
-      // Criação do payload dinâmico (limpando propriedades de professor se for Coordenação)
       const payload = { 
         ...formData,
         areaAtuacao: formData.perfil === 'Professor' ? formData.areaAtuacao : '',
-        telefone: formData.perfil === 'Professor' ? formData.telefone : ''
+        // 👉 Se o telefone estiver vazio, enviamos nulo igual no aluno
+        telefone: formData.perfil === 'Professor' && formData.telefone.trim() !== '' ? formData.telefone : undefined
       };
       
       await api.post('/Auth/register', payload);
@@ -96,7 +110,6 @@ export function NovoProfessor() {
 
         <form onSubmit={handleSave} className="flex flex-col gap-6">
           
-          {/* Seletor Dinâmico de Perfil */}
           <div className="border-b border-gray-100 pb-6 mb-2">
             <label className="block text-sm font-bold text-gray-900 mb-2">Perfil de Acesso *</label>
             <select 
@@ -126,6 +139,7 @@ export function NovoProfessor() {
               <label className="block text-sm font-bold text-gray-900 mb-2">Telefone</label>
               <input 
                 name="telefone" 
+                maxLength={15} // 👉 Adicionado o limite de caracteres
                 value={formData.telefone} 
                 onChange={handleChange} 
                 placeholder={formData.perfil === 'Professor' ? "(00) 00000-0000" : "Apenas para professores"} 
@@ -135,7 +149,6 @@ export function NovoProfessor() {
             </div>
           </div>
 
-          {/* Área de atuação e Senha (lado a lado na grid) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {formData.perfil === 'Professor' ? (
@@ -176,7 +189,7 @@ export function NovoProfessor() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 mt-8 pt-4">
+          <div className="flex items-center gap-4 mt-8 pt-4 border-t border-gray-100">
             <Button type="button" variant="outline" onClick={() => navigate(-1)} className="flex-1 border border-gray-300 text-gray-900 py-2.5 flex items-center justify-center rounded-md">
               Cancelar
             </Button>

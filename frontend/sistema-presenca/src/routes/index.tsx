@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from '../pages/Login';
-import { Cadastro } from '../pages/Cadastro';
-import { RecuperarSenha } from '../pages/RecuperarSenha';
 import { ConfirmacaoEnvio } from '../pages/ConfirmacaoEnvio';
 import { AlterarSenha } from '../pages/AlterarSenha';
 import { PrivateRoute } from './PrivateRoute';
@@ -18,6 +16,7 @@ import { AlunoDisciplinas } from '../pages/alunos/AlunoDisciplinas';
 import { Professores } from '../pages/Professores';
 import { NovoProfessor } from '../pages/NovoProfessor';
 import { Relatorios } from '../pages/relatorios/Relatorios';
+import { EditarProfissional } from '../pages/EditarProfissional';
 
 export function AppRoutes() {
   return (
@@ -26,8 +25,6 @@ export function AppRoutes() {
         {/* Rotas Públicas (Qualquer um acessa) */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/cadastro" element={<Cadastro />} />
-        <Route path="/recuperar-senha" element={<RecuperarSenha />} />
         <Route path="/confirmacao" element={<ConfirmacaoEnvio />} />
         <Route path="/alterar-senha" element={<AlterarSenha />} />
 
@@ -47,6 +44,7 @@ export function AppRoutes() {
             <Route element={<ProtectedRoute allowedRoles={['Coordenacao']} />}>
               <Route path="/disciplinas/nova" element={<NovaDisciplina />} />
               <Route path="/disciplinas/editar/:id" element={<EditarDisciplina />} />
+              <Route path="/professores/editar/:id" element={<EditarProfissional />} />
               <Route path="/alunos/novo" element={<NovoAluno />} />
               <Route path="/alunos/editar/:id" element={<EditarAluno />} />
               <Route path="/professores/novo" element={<NovoProfessor />} />

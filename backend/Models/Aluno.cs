@@ -15,8 +15,10 @@ namespace backend.Models
         [MaxLength(50)]
         public string Matricula { get; set; } = string.Empty;
 
-        [Required]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+
+        [MaxLength(20)]
+        public string? Telefone { get; set; }
 
         public bool Ativo { get; set; } = true;
 

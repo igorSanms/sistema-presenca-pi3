@@ -4,14 +4,14 @@ import { api } from './api';
 export interface AlunoData {
   id?: string; 
   nome: string;
-  email: string;
-  telefone?: string;         // 👉 Transformado em opcional (?) para aceitar strings vazias ou undefined
-  matricula?: string;        // 👉 Adicionado para sumir o erro na tabela de Alunos
-  disciplinasIds?: string[]; // 👉 Adicionado para sumir o erro do payload no NovoAluno
+  email?: string;
+  telefone?: string; 
+  matricula?: string;        
+  disciplinasIds?: string[];
   presencas?: number;
   faltasReais?: number;
   faltasJustificadas?: number;
-  disciplinas?: Array<{ id: string; nome: string }>; // 👉 Adicionado para mapear o retorno do C#
+  disciplinas?: Array<{ id: string; nome: string }>; 
 }
 
 export const alunoService = {

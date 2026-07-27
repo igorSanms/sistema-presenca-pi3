@@ -31,8 +31,23 @@ export function NovoAluno() {
     carregarCatalogo();
   }, []);
 
+  // Função para formatar o telefone no padrão (99) 99999-9999
+  const formatarTelefone = (valor: string) => {
+    if (!valor) return "";
+    let telefone = valor.replace(/\D/g, ""); // Remove tudo que não for número
+    if (telefone.length <= 2) return `(${telefone}`;
+    if (telefone.length <= 7) return `(${telefone.slice(0, 2)}) ${telefone.slice(2)}`;
+    return `(${telefone.slice(0, 2)}) ${telefone.slice(2, 7)}-${telefone.slice(7, 11)}`;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    
+    //  Se o campo for telefone, aplica a máscara antes de salvar no estado
+    if (name === 'telefone') {
+      value = formatarTelefone(value);
+    }
+
     setFormData({ ...formData, [name]: value });
     if (erros[name]) {
       setErros({ ...erros, [name]: '' });
@@ -44,7 +59,6 @@ export function NovoAluno() {
     const novosErros: Record<string, string> = {};
 
     if (!formData.nome.trim()) novosErros.nome = 'Nome completo é obrigatório';
-    if (!formData.email.trim()) novosErros.email = 'E-mail é obrigatório';
 
     if (Object.keys(novosErros).length > 0) {
       setErros(novosErros);
@@ -54,10 +68,9 @@ export function NovoAluno() {
     try {
       setLoading(true);
       
-      // Mágica do Auto-Vínculo: Injeta automaticamente a totalidade de IDs do cursinho
       const payload = {
         nome: formData.nome,
-        email: formData.email,
+        email: formData.email || undefined,
         telefone: formData.telefone || undefined,
         disciplinasIds: catalogDisciplinas.map(d => d.id) 
       };
@@ -65,9 +78,10 @@ export function NovoAluno() {
       await alunoService.criar(payload);
       alert('Aluno cadastrado com sucesso! Matrícula e inserção na grade unificada geradas.');
       navigate('/alunos');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao cadastrar aluno:', error);
-      alert('Erro ao salvar novo aluno no banco de dados.');
+      const mensagemErro = error.response?.data?.message || 'Erro ao salvar novo aluno no banco de dados.';
+      alert(mensagemErro);
     } finally {
       setLoading(false);
     }
@@ -96,13 +110,14 @@ export function NovoAluno() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">Email *</label>
+              <label className="block text-sm font-bold text-gray-900 mb-2">Email</label>
               <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="aluno@email.com" className={inputClass('email')} />
               {erros.email && <span className="text-[#ff6b6b] text-xs mt-1 block font-medium">{erros.email}</span>}
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-2">Telefone</label>
-              <input name="telefone" value={formData.telefone} onChange={handleChange} placeholder="(00) 00000-0000" className={inputClass('telefone')} />
+              {/* 👉 Adicionado o maxLength=15 para limitar o tamanho */}
+              <input name="telefone" maxLength={15} value={formData.telefone} onChange={handleChange} placeholder="(00) 00000-0000" className={inputClass('telefone')} />
             </div>
           </div>
 

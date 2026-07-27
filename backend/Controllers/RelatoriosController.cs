@@ -110,13 +110,20 @@ namespace backend.Controllers
         }
 
         [HttpGet("Frequencia/Evolucao")]
-        public async Task<IActionResult> EvolucaoFrequencia()
+        public async Task<IActionResult> EvolucaoFrequencia([FromQuery] int? ano)
         {
             // Agregação pesada nativa no SQL Server / Postgres via IQueryable
             var query = _context.RegistrosFrequencia
                 .Include(r => r.Aula)
                 .Where(r => r.Aula != null)
                 .AsQueryable();
+
+            // 👉 NOVO: FILTRO DE ANO LETIVO
+            // Se o React enviou um ano (ex: 2026), filtramos as aulas apenas daquele ano.
+            if (ano.HasValue)
+            {
+                query = query.Where(r => r.Aula!.Data.Year == ano.Value);
+            }
 
             var perfil = User.FindFirst(ClaimTypes.Role)?.Value;
             if (perfil == "Professor")

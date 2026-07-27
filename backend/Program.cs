@@ -69,7 +69,7 @@ using (var scope = app.Services.CreateScope())
         dbContext.Usuarios.Add(new backend.Models.Usuario
         {
             Id = Guid.NewGuid(),
-            Nome = "Administrador Sistema",
+            Nome = "Coordenação",
             Email = adminEmail,
             SenhaHash = BCrypt.Net.BCrypt.HashPassword(adminSenha),
             Perfil = backend.Models.Enums.Perfil.Coordenacao,

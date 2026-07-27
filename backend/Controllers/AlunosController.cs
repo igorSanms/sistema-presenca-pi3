@@ -1,11 +1,12 @@
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
-using backend.Models.Enums; // 👉 Adicionado para reconhecer o StatusPresenca
+using backend.Models.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -37,7 +38,6 @@ namespace backend.Controllers
                 .Where(a => a.Ativo)
                 .AsQueryable();
 
-            // RBAC estrito de visibilidade
             if (perfil == "Professor")
             {
                 query = query.Where(a => a.AlunoDisciplinas.Any(ad => ad.Disciplina.ProfessorId == userId));
@@ -56,13 +56,13 @@ namespace backend.Controllers
                     Nome = a.Nome,
                     Matricula = a.Matricula,
                     Email = a.Email,
+                    Telefone = a.Telefone,
                     Ativo = a.Ativo,
                     
-                    // 👉 MATEMÁTICA DA CHAMADA UNIFICADA INJETADA DIRETO NO BANCO
-                    Presencas = a.Registros.Count(r => r.Status == (StatusPresenca)0), // Status 0 = Presente
-                    FaltasReais = a.Registros.Count(r => r.Status == StatusPresenca.Falta), // Status 1 = Falta
-                    FaltasJustificadas = a.Registros.Count(r => r.Status == StatusPresenca.Justificada), // Status 2 = Justificada
-                    TotalAulas = a.Registros.Count(), // Soma de todas as frequências dele
+                    Presencas = a.Registros.Count(r => r.Status == (StatusPresenca)0), 
+                    FaltasReais = a.Registros.Count(r => r.Status == StatusPresenca.Falta), 
+                    FaltasJustificadas = a.Registros.Count(r => r.Status == StatusPresenca.Justificada), 
+                    TotalAulas = a.Registros.Count(), 
                     
                     Disciplinas = a.AlunoDisciplinas.Select(ad => new AlunoDisciplinaResponseDTO
                     {
@@ -78,7 +78,6 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            // Refatorado para usar o Select e trazer os contadores dinâmicos calculados do aluno específico
             var aluno = await _context.Alunos
                 .Where(al => al.Id == id && al.Ativo)
                 .Select(a => new AlunoResponseDTO
@@ -87,9 +86,9 @@ namespace backend.Controllers
                     Nome = a.Nome,
                     Matricula = a.Matricula,
                     Email = a.Email,
+                    Telefone = a.Telefone,
                     Ativo = a.Ativo,
                     
-                    // 👉 CONTADORES PARA A TELA DE DETALHES/EDIÇÃO
                     Presencas = a.Registros.Count(r => r.Status == (StatusPresenca)0),
                     FaltasReais = a.Registros.Count(r => r.Status == StatusPresenca.Falta),
                     FaltasJustificadas = a.Registros.Count(r => r.Status == StatusPresenca.Justificada),
@@ -113,6 +112,16 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> Create([FromBody] AlunoCreateDTO dto)
         {
+            // 👉 NOVA REGRA: Verifica se o e-mail já existe (ignorando letras maiúsculas/minúsculas)
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email.ToLower() == dto.Email.ToLower());
+                if (emailEmUso)
+                {
+                    return BadRequest(new { Message = "Este e-mail já está cadastrado para outro aluno." });
+                }
+            }
+
             var matriculaAuto = Guid.NewGuid().ToString().Substring(0, 8).ToUpper();
             while (await _context.Alunos.AnyAsync(a => a.Matricula == matriculaAuto))
             {
@@ -125,6 +134,7 @@ namespace backend.Controllers
                 Nome = dto.Nome,
                 Matricula = matriculaAuto,
                 Email = dto.Email,
+                Telefone = dto.Telefone, 
                 Ativo = true
             };
 
@@ -153,8 +163,19 @@ namespace backend.Controllers
             if (aluno == null || !aluno.Ativo) 
                 return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
+            // 👉 NOVA REGRA: Verifica se o e-mail existe, mas ignora se for o e-mail do PRÓPRIO aluno
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email.ToLower() == dto.Email.ToLower() && a.Id != id);
+                if (emailEmUso)
+                {
+                    return BadRequest(new { Message = "Este e-mail já está cadastrado para outro aluno." });
+                }
+            }
+
             aluno.Nome = dto.Nome;
             aluno.Email = dto.Email;
+            aluno.Telefone = dto.Telefone; 
 
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Aluno atualizado com sucesso." });

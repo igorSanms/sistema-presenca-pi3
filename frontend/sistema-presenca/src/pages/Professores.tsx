@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Search, User, Mail, BookOpen, Plus, Trash2, Shield } from 'lucide-react';
+import { Search, User, Mail, BookOpen, Plus, Trash2, Shield, Phone, Pencil } from 'lucide-react';
 import { Button } from '../components/Button';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 
 interface Professor {
   id: string;
   nome: string;
   email: string;
+  telefone?: string; 
   areaAtuacao: string;
 }
 
@@ -15,14 +16,17 @@ interface Coordenador {
   id: string;
   nome: string;
   email: string;
+  telefone?: string; 
 }
 
 export function Professores() {
+  const navigate = useNavigate(); // Adicionado o hook de navegação aqui
+  
   const [professores, setProfessores] = useState<Professor[]>([]);
   const [coordenadores, setCoordenadores] = useState<Coordenador[]>([]);
   const [busca, setBusca] = useState('');
 
-  // Hidratação simultânea via Promise.all para carregar ambos os conjuntos de dados
+  // Hidratação simultânea via Promise.all
   useEffect(() => {
     async function loadProfissionais() {
       try {
@@ -42,7 +46,6 @@ export function Professores() {
   const perfilUsuarioLogado = localStorage.getItem('@SistemaPresenca:perfil');
   const isCoordenacao = perfilUsuarioLogado === 'Coordenacao';
 
-  // Exclusão Inteligente baseada no perfil do alvo
   const handleDelete = async (id: string, perfilAlvo: 'Professor' | 'Coordenacao') => {
     const label = perfilAlvo === 'Professor' ? 'professor' : 'coordenador';
     const endpoint = perfilAlvo === 'Professor' ? `/Auth/professores/${id}` : `/Auth/coordenadores/${id}`;
@@ -50,8 +53,6 @@ export function Professores() {
     if (window.confirm(`Tem certeza que deseja desativar este ${label}? O histórico dele será mantido.`)) {
       try {
         await api.delete(endpoint);
-        
-        // Remove localmente do respectivo estado para atualizar a UI de forma reativa
         if (perfilAlvo === 'Professor') {
           setProfessores(professores.filter(p => p.id !== id));
         } else {
@@ -64,11 +65,12 @@ export function Professores() {
     }
   };
 
-  // Filtragem local baseada na barra de buscas
+  // Filtragem local
   const professoresFiltrados = professores.filter(p =>
     p.nome.toLowerCase().includes(busca.toLowerCase()) || 
     p.email.toLowerCase().includes(busca.toLowerCase()) ||
-    p.areaAtuacao.toLowerCase().includes(busca.toLowerCase())
+    p.areaAtuacao.toLowerCase().includes(busca.toLowerCase()) ||
+    (p.telefone && p.telefone.includes(busca)) 
   );
 
   const coordenadoresFiltrados = coordenadores.filter(c =>
@@ -105,7 +107,7 @@ export function Professores() {
         <input
           type="text"
           className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-          placeholder="Buscar profissional por nome ou email..."
+          placeholder="Buscar profissional por nome, email ou telefone..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
@@ -131,14 +133,24 @@ export function Professores() {
                     Docente
                   </span>
                 </div>
+                {/* Botões de Editar e Excluir juntos do Professor */}
                 {isCoordenacao && (
-                  <button
-                    onClick={() => handleDelete(prof.id, 'Professor')}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
-                    title="Desativar Professor"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => navigate(`/professores/editar/${prof.id}`)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                      title="Editar Professor"
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(prof.id, 'Professor')}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                      title="Desativar Professor"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -148,6 +160,12 @@ export function Professores() {
                 <div className="flex items-center gap-2 text-gray-600 text-sm">
                   <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="truncate" title={prof.email}>{prof.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600 text-sm">
+                  <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <span className="truncate" title={prof.telefone || 'Não informado'}>
+                    {prof.telefone || 'Não informado'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600 text-sm">
                   <BookOpen className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -186,14 +204,23 @@ export function Professores() {
                       Administrador
                     </span>
                   </div>
-                  {isCoordenacao && (
-                    <button
-                      onClick={() => handleDelete(coord.id, 'Coordenacao')}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors flex-shrink-0"
-                      title="Desativar Coordenador"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  {isCoordenacao && coord.email.toLowerCase() !== 'admin@gmail.com' && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => navigate(`/professores/editar/${coord.id}`)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                        title="Editar Coordenador"
+                      >
+                        <Pencil className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(coord.id, 'Coordenacao')}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        title="Desativar Coordenador"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   )}
                 </div>
 

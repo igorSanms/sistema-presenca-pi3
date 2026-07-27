@@ -39,6 +39,11 @@ export function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams();
   const abaQuery = searchParams.get('aba');
   const [abaAtiva, setAbaAtiva] = useState(abaQuery || 'exportacao');
+  // Estados para o Filtro do Gráfico
+  const anoAtual = new Date().getFullYear();
+  const [anoSelecionado, setAnoSelecionado] = useState(anoAtual);
+  const anosDisponiveis = Array.from({ length: 5 }, (_, i) => anoAtual - i); // Gera os últimos 5 anos
+  
 
   const handleTrocarAba = (aba: string) => {
     setAbaAtiva(aba);
@@ -79,7 +84,10 @@ export function Relatorios() {
       const loadDadosDashboard = async () => {
         try {
           setCarregandoDashboard(true);
-          const { data } = await api.get('/Relatorios/Frequencia/Evolucao');
+          // 👉 AGORA ENVIAMOS O ANO PARA O C#
+          const { data } = await api.get('/Relatorios/Frequencia/Evolucao', {
+            params: { ano: anoSelecionado } 
+          });
           setDadosEvolucao(data);
         } catch (error) {
           console.error("Erro ao buscar dados do dashboard:", error);
@@ -103,7 +111,7 @@ export function Relatorios() {
           const { data } = await api.get('/Alertas/Ativos');
           const alertasData = data || [];
 
-          // 👉 NOVA TRAVA DE SEGURANÇA: Filtra os alertas deixando apenas os de alunos ativos
+          // NOVA TRAVA DE SEGURANÇA: Filtra os alertas deixando apenas os de alunos ativos
           const alertasDeAlunosAtivos = alertasData.filter((alerta: any) => {
             // Cruzamento ESTRITO pelo ID único (removemos a falha do nome)
             const alertaAlunoId = alerta.alunoId || alerta.AlunoId;
@@ -145,10 +153,10 @@ export function Relatorios() {
             console.log('Nenhuma chamada encontrada para esta data.');
           }
 
-          // 👉 O GRANDE SEGREDO: Filtra a lista deixando APENAS quem tem um status salvo no banco
+          //  O GRANDE SEGREDO: Filtra a lista deixando APENAS quem tem um status salvo no banco
           const registrosReais = frequenciaData.filter((f: any) => f.status != null || f.Status != null);
 
-          // 👉 NOVA TRAVA DE SEGURANÇA: Remove os registros de alunos desativados/excluídos
+          //  NOVA TRAVA DE SEGURANÇA: Remove os registros de alunos desativados/excluídos
           const registrosDeAlunosAtivos = registrosReais.filter((registro: any) => {
             const regId = registro.alunoId || registro.AlunoId;
             
@@ -197,7 +205,7 @@ export function Relatorios() {
       };
       loadHistorico();
     }
-  }, [abaAtiva, isProfessor, dataHistorico]);
+  }, [abaAtiva, isProfessor, dataHistorico, anoSelecionado]);
 
   const handleResolverAlerta = async (id: string) => {
     try {
@@ -326,6 +334,43 @@ export function Relatorios() {
     }
   };
 
+  const [baixandoDashboard, setBaixandoDashboard] = useState(false);
+
+  const handleDownloadDashboardCSV = () => {
+    try {
+      setBaixandoDashboard(true);
+      
+      if (!dadosEvolucao || dadosEvolucao.length === 0) {
+        alert('Não há dados de frequência para o ano selecionado.');
+        return;
+      }
+
+      // Monta o cabeçalho
+      let csvContent = "Periodo,Total de Presencas,Total de Faltas,Taxa de Frequencia (%)\n";
+
+      // Preenche com os dados que já estão no gráfico
+      dadosEvolucao.forEach((d: any) => {
+        csvContent += `${d.periodo},${d.totalPresencas},${d.totalFaltas},${d.taxaFrequencia}\n`;
+      });
+
+      // Gera o download do arquivo
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `frequencia_anual_${anoSelecionado}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (error) {
+      console.error('Erro ao exportar dados do dashboard:', error);
+      alert('Erro ao gerar relatório do gráfico.');
+    } finally {
+      setBaixandoDashboard(false);
+    }
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload; 
@@ -415,14 +460,42 @@ export function Relatorios() {
           {/* Sessão 2: Dashboards Analíticos */}
           {abaAtiva === 'dashboards' && (
              <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
-                {/* Mantido igual... */}
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="bg-blue-100 text-blue-600 p-2.5 rounded-lg"><Activity className="w-6 h-6" /></div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">Evolução Histórica da Frequência</h2>
-                    <p className="text-sm text-gray-500 mt-1">Acompanhamento mês a mês da taxa de presença acadêmica global</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 text-blue-600 p-2.5 rounded-lg"><Activity className="w-6 h-6" /></div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Evolução Histórica da Frequência</h2>
+                      <p className="text-sm text-gray-500 mt-1">Acompanhamento mensal da taxa de presença acadêmica</p>
+                    </div>
+                  </div>
+                  
+                  {/* NOVO SELETOR DE ANO E BOTÃO DE EXPORTAR */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-bold text-gray-700">Ano Letivo:</label>
+                      <select 
+                        value={anoSelecionado}
+                        onChange={(e) => setAnoSelecionado(Number(e.target.value))}
+                        className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2 font-bold cursor-pointer"
+                      >
+                        {anosDisponiveis.map(ano => (
+                          <option key={ano} value={ano}>{ano}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button 
+                      onClick={handleDownloadDashboardCSV}
+                      disabled={baixandoDashboard}
+                      className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2 px-3 rounded-lg transition-colors border border-blue-200 text-sm disabled:opacity-50"
+                      title="Baixar planilha deste ano"
+                    >
+                      <Download className="w-4 h-4" />
+                      Exportar 
+                    </button>
                   </div>
                 </div>
+                
                 <div className="w-full h-80 mt-8">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={dadosEvolucao} margin={{ top: 20, right: 30, left: -10, bottom: 0 }}>
