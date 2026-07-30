@@ -14,6 +14,19 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  // 👉 LÓGICA DAS TURMAS: Injeta o ID da Turma Selecionada no cabeçalho
+  const turmaData = localStorage.getItem('@SistemaPresenca:turmaAtiva');
+  if (turmaData && config.headers) {
+    try {
+      const turma = JSON.parse(turmaData);
+      if (turma && turma.id) {
+        config.headers['X-Turma-Id'] = turma.id;
+      }
+    } catch (error) {
+      console.error("Erro ao ler turma do localStorage", error);
+    }
+  }
+
   return config;
 }, (error) => {
   return Promise.reject(error);

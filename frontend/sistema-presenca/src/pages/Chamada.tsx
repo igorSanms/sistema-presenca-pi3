@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle, Lock } from 'lucide-react';
 import { Button } from '../components/Button';
 import { api } from '../services/api';
 
@@ -18,14 +18,15 @@ export function Chamada() {
   const hojeDate = new Date();
   const hojeISO = `${hojeDate.getFullYear()}-${String(hojeDate.getMonth() + 1).padStart(2, '0')}-${String(hojeDate.getDate()).padStart(2, '0')}`;
   
-  // 👉 Ativado o setDataAula para permitir alterar o dia da chamada dinamicamente
-  const [dataAula, setDataAula] = useState(location.state?.data || hojeISO); 
+  // Data mantida, mas agora será apenas para visualização
+  const [dataAula] = useState(location.state?.data || hojeISO); 
   const [alunos, setAlunos] = useState<AlunoChamada[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [loadingDados, setLoadingDados] = useState(true);
   
-  const [isEdicao, setIsEdicao] = useState(false);
+  // Alterado de isEdicao para chamadaRealizada para refletir o novo bloqueio
+  const [chamadaRealizada, setChamadaRealizada] = useState(false);
 
   useEffect(() => {
     async function loadDadosDaChamada() {
@@ -47,11 +48,11 @@ export function Chamada() {
           console.log('Nenhuma chamada anterior encontrada. Iniciando lista limpa.');
         }
 
-        // Se já tiver dados, ativa o modo de edição ao invés de bloquear
+        // Se já tiver dados, bloqueia a tela informando que a chamada já foi feita
         if (frequenciaData.length > 0) {
-          setIsEdicao(true);
+          setChamadaRealizada(true);
         } else {
-          setIsEdicao(false); // Garante que volta a ser nova chamada se mudar para um dia limpo
+          setChamadaRealizada(false);
         }
 
         // 3. Faz o Merge visual
@@ -94,18 +95,22 @@ export function Chamada() {
   }, [dataAula]);
 
   const handleStatusChange = (id: string, novoStatus: 0 | 1 | 2 | null) => {
+    if (chamadaRealizada) return; // Trava de segurança extra
     setAlunos(prev => prev.map(aluno => 
       aluno.alunoId === id ? { ...aluno, status: novoStatus } : aluno
     ));
   };
 
   const handleObsChange = (id: string, obs: string) => {
+    if (chamadaRealizada) return; // Trava de segurança extra
     setAlunos(prev => prev.map(aluno => 
       aluno.alunoId === id ? { ...aluno, observacao: obs } : aluno
     ));
   };
 
   const handleSave = async () => {
+    if (chamadaRealizada) return;
+    
     try {
       setLoading(true);
       
@@ -119,12 +124,11 @@ export function Chamada() {
       };
 
       await api.post('/Frequencia', payload);
-      alert(isEdicao ? 'Chamada atualizada com sucesso!' : 'Chamada salva com sucesso!');
+      alert('Chamada salva com sucesso!');
       
       window.dispatchEvent(new Event('alertaResolvido'));
       
-      setIsEdicao(true);
-      // navigate('/painel');
+      setChamadaRealizada(true);
       window.location.href = '/painel';
     } catch (error: any) {
       console.error("Erro ao salvar chamada:", error?.response?.data);
@@ -154,12 +158,13 @@ export function Chamada() {
         <p className="text-sm text-gray-500 mt-1">Gestão de frequência unificada • {total} alunos cadastrados no cursinho</p>
       </div>
 
-      {isEdicao && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 mb-6 flex items-center gap-3 shadow-sm">
-          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+      {/* Novo aviso de bloqueio da chamada */}
+      {chamadaRealizada && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 mb-6 flex items-center gap-3 shadow-sm">
+          <Lock className="w-5 h-5 text-blue-600 flex-shrink-0" />
           <div>
-            <h4 className="font-bold text-sm">Modo de Edição</h4>
-            <p className="text-xs mt-0.5">A chamada de hoje já foi registrada. Qualquer alteração feita e salva agora irá atualizar os dados no sistema.</p>
+            <h4 className="font-bold text-sm">Chamada já registrada</h4>
+            <p className="text-xs mt-0.5">A chamada deste dia já foi finalizada. Caso precise corrigir ou alterar alguma informação, entre em contato com a Coordenação para ajuste via Histórico de Chamadas.</p>
           </div>
         </div>
       )}
@@ -168,12 +173,12 @@ export function Chamada() {
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2">Data da Aula</label>
           <div className="relative">
-            {/* 👉 Input modificado para tipo "date" interativo e conectado ao estado */}
+            {/* Input agora é readOnly e visualmente bloqueado */}
             <input 
               type="date" 
               value={dataAula}
-              onChange={(e) => setDataAula(e.target.value)}
-              className="bg-white border border-gray-300 rounded-md py-2.5 px-4 text-sm font-medium text-gray-700 focus:ring-1 focus:ring-blue-500 focus:outline-none min-w-[200px]"
+              readOnly
+              className="bg-gray-100 border border-gray-300 rounded-md py-2.5 px-4 text-sm font-medium text-gray-500 focus:outline-none min-w-[200px] cursor-not-allowed opacity-80"
             />
           </div>
         </div>
@@ -220,7 +225,8 @@ export function Chamada() {
                         type="checkbox" 
                         checked={aluno.status === 1} 
                         onChange={(e) => handleStatusChange(aluno.alunoId, e.target.checked ? 1 : 0)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                        disabled={chamadaRealizada}
+                        className={`w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${chamadaRealizada ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} 
                       />
                     </td>
                     
@@ -229,7 +235,8 @@ export function Chamada() {
                         type="checkbox" 
                         checked={aluno.status === 2} 
                         onChange={(e) => handleStatusChange(aluno.alunoId, e.target.checked ? 2 : 0)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                        disabled={chamadaRealizada}
+                        className={`w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${chamadaRealizada ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} 
                       />
                     </td>
 
@@ -246,10 +253,11 @@ export function Chamada() {
                     <td className="py-4 px-4">
                       <input 
                         type="text" 
-                        placeholder="Adicionar observação..."
+                        placeholder={chamadaRealizada ? "Sem observações adicionais" : "Adicionar observação..."}
                         value={aluno.observacao || ''}
                         onChange={(e) => handleObsChange(aluno.alunoId, e.target.value)}
-                        className="w-full bg-gray-100 border-transparent focus:bg-white focus:border-gray-300 focus:ring-1 focus:ring-blue-500 rounded-md px-3 py-2 text-xs transition-all"
+                        disabled={chamadaRealizada}
+                        className={`w-full bg-gray-100 border-transparent rounded-md px-3 py-2 text-xs transition-all ${chamadaRealizada ? 'cursor-not-allowed text-gray-500' : 'focus:bg-white focus:border-gray-300 focus:ring-1 focus:ring-blue-500'}`}
                       />
                     </td>
                   </tr>
@@ -259,16 +267,19 @@ export function Chamada() {
           </div>
         )}
 
-        <div className="flex justify-end mt-8 border-t border-gray-100 pt-6">
-          <Button 
-            variant="secondary" 
-            className="bg-[#0A0F1C] hover:bg-gray-800 text-white py-2.5 px-8 flex items-center justify-center rounded-md w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold" 
-            onClick={handleSave} 
-            disabled={loading || alunos.length === 0}
-          >
-            <Save className="w-4 h-4 mr-2" /> {loading ? 'Salvando...' : isEdicao ? 'Atualizar Chamada' : 'Salvar Chamada'}
-          </Button>
-        </div>
+        {/* Esconde o botão de salvar caso a chamada já tenha sido feita */}
+        {!chamadaRealizada && (
+          <div className="flex justify-end mt-8 border-t border-gray-100 pt-6">
+            <Button 
+              variant="secondary" 
+              className="bg-[#0A0F1C] hover:bg-gray-800 text-white py-2.5 px-8 flex items-center justify-center rounded-md w-auto disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-bold" 
+              onClick={handleSave} 
+              disabled={loading || alunos.length === 0}
+            >
+              <Save className="w-4 h-4 mr-2" /> {loading ? 'Salvando...' : 'Salvar Chamada'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

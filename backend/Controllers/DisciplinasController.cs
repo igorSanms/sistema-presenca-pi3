@@ -27,33 +27,33 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
 
             var hoje = DateOnly.FromDateTime(DateTime.Now);
-            var dataMinima = new DateOnly(2000, 1, 1); // Evita bugar com datas vazias (0001-01-01)
+            var dataMinima = new DateOnly(2000, 1, 1);
 
             var disciplinasVencidas = await _context.Disciplinas
-                .Where(d => d.Ativo && d.DataFim > dataMinima && d.DataFim < hoje)
+                .Where(d => d.Ativo && d.TurmaId == turmaId && d.DataFim > dataMinima && d.DataFim < hoje)
                 .ToListAsync();
 
             if (disciplinasVencidas.Any())
             {
                 foreach (var d in disciplinasVencidas)
                 {
-                    d.Ativo = false; // Desativa a disciplina
+                    d.Ativo = false;
                 }
-                // Salva a alteração no banco de dados automaticamente
                 await _context.SaveChangesAsync();
             }
 
-            // Extrai o Perfil e o ID do usuário através do Token JWT (Claims)
             var perfil = User.FindFirst(ClaimTypes.Role)?.Value;
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
             var query = _context.Disciplinas
                 .Include(d => d.Professor)
+                .Where(d => d.TurmaId == turmaId) // 👉 Filtra pela turma
                 .AsQueryable();
 
-            // Se for Professor, isola a visualização (RBAC - Row-Level Security App Side)
             if (perfil == "Professor")
             {
                 if (Guid.TryParse(userIdStr, out Guid professorId))
@@ -65,7 +65,6 @@ namespace backend.Controllers
                     return Unauthorized(new { Message = "Sessão inválida. ID do professor ausente." });
                 }
             }
-            // Se for Coordenação, a query permanece intacta (God Mode)
 
             var disciplinas = await query
                 .Select(d => new DisciplinaResponseDTO
@@ -87,8 +86,12 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
             var disciplina = await _context.Disciplinas
                 .Include(d => d.Professor)
+                .Where(d => d.Id == id && d.TurmaId == turmaId) // 👉 Filtra pela turma
                 .Select(d => new DisciplinaResponseDTO
                 {
                     Id = d.Id,
@@ -100,11 +103,11 @@ namespace backend.Controllers
                     DataFim = d.DataFim,
                     Ativo = d.Ativo
                 })
-                .FirstOrDefaultAsync(d => d.Id == id);
+                .FirstOrDefaultAsync();
 
             if (disciplina == null)
             {
-                return NotFound(new { Message = "Disciplina não encontrada." });
+                return NotFound(new { Message = "Disciplina não encontrada nesta turma." });
             }
 
             return Ok(disciplina);
@@ -113,6 +116,9 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] DisciplinaCreateDTO dto)
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
             var professor = await _context.Professores.FindAsync(dto.ProfessorId);
             if (professor == null)
             {
@@ -127,7 +133,8 @@ namespace backend.Controllers
                 Horarios = dto.Horarios,
                 DataInicio = dto.DataInicio,
                 DataFim = dto.DataFim,
-                Ativo = true // 👉 Toda disciplina nova nasce ativada
+                Ativo = true,
+                TurmaId = turmaId // 👉 Vincula a nova disciplina à turma ativa!
             };
 
             _context.Disciplinas.Add(disciplina);
@@ -151,10 +158,13 @@ namespace backend.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] DisciplinaUpdateDTO dto)
         {
-            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
+            var disciplina = await _context.Disciplinas.FirstOrDefaultAsync(d => d.Id == id && d.TurmaId == turmaId);
             if (disciplina == null)
             {
-                return NotFound(new { Message = "Disciplina não encontrada." });
+                return NotFound(new { Message = "Disciplina não encontrada nesta turma." });
             }
 
             var professor = await _context.Professores.FindAsync(dto.ProfessorId);
@@ -174,18 +184,20 @@ namespace backend.Controllers
             return NoContent();
         }
 
-        // 👉 NOVA ROTA: Apenas inverte o status de Ativo para Inativo (e vice-versa)
         [Authorize(Roles = "Coordenacao")]
         [HttpPatch("{id}/toggle")]
         public async Task<IActionResult> ToggleStatus(Guid id)
         {
-            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
+            var disciplina = await _context.Disciplinas.FirstOrDefaultAsync(d => d.Id == id && d.TurmaId == turmaId);
             if (disciplina == null)
             {
-                return NotFound(new { Message = "Disciplina não encontrada." });
+                return NotFound(new { Message = "Disciplina não encontrada nesta turma." });
             }
 
-            disciplina.Ativo = !disciplina.Ativo; // Inverte o valor atual
+            disciplina.Ativo = !disciplina.Ativo;
             await _context.SaveChangesAsync();
 
             var statusStr = disciplina.Ativo ? "ativada" : "desativada";
@@ -196,10 +208,13 @@ namespace backend.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
+            var disciplina = await _context.Disciplinas.FirstOrDefaultAsync(d => d.Id == id && d.TurmaId == turmaId);
             if (disciplina == null)
             {
-                return NotFound(new { Message = "Disciplina não encontrada." });
+                return NotFound(new { Message = "Disciplina não encontrada nesta turma." });
             }
 
             _context.Disciplinas.Remove(disciplina);

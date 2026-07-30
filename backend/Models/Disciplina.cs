@@ -26,6 +26,10 @@ namespace backend.Models
         // Armazena os horários da disciplina (como JSON ou texto simples)
         public string Horarios { get; set; } = string.Empty;
 
+        // Adicione estas duas linhas:
+        public Guid TurmaId { get; set; }
+        public Turma? Turma { get; set; }
+
         // NOVO CAMPO: Controla se a disciplina está ativa ou desativada no sistema
         public bool Ativo { get; set; } = true;
     }

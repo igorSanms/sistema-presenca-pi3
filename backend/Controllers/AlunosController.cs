@@ -28,6 +28,9 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] Guid? disciplinaId)
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
             var perfil = User.FindFirst(ClaimTypes.Role)?.Value;
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             Guid.TryParse(userIdStr, out Guid userId);
@@ -35,7 +38,7 @@ namespace backend.Controllers
             var query = _context.Alunos
                 .Include(a => a.AlunoDisciplinas)
                 .ThenInclude(ad => ad.Disciplina)
-                .Where(a => a.Ativo)
+                .Where(a => a.Ativo && a.TurmaId == turmaId) // 👉 Filtra pela turma
                 .AsQueryable();
 
             if (perfil == "Professor")
@@ -78,8 +81,11 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
             var aluno = await _context.Alunos
-                .Where(al => al.Id == id && al.Ativo)
+                .Where(al => al.Id == id && al.Ativo && al.TurmaId == turmaId) // 👉 Filtra pela turma
                 .Select(a => new AlunoResponseDTO
                 {
                     Id = a.Id,
@@ -103,7 +109,7 @@ namespace backend.Controllers
                 .FirstOrDefaultAsync();
 
             if (aluno == null) 
-                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
+                return NotFound(new { Message = "Aluno não encontrado nesta turma ou inativo." });
 
             return Ok(aluno);
         }
@@ -112,10 +118,12 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> Create([FromBody] AlunoCreateDTO dto)
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
 
             if (!string.IsNullOrWhiteSpace(dto.Email))
             {
-                var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email.ToLower() == dto.Email.ToLower());
+                var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email != null && a.Email.ToLower() == dto.Email.ToLower());
                 if (emailEmUso)
                 {
                     return BadRequest(new { Message = "Este e-mail já está cadastrado para outro aluno." });
@@ -133,10 +141,10 @@ namespace backend.Controllers
                 Id = Guid.NewGuid(),
                 Nome = dto.Nome,
                 Matricula = matriculaAuto,
-                // 👉 CORREÇÃO AQUI: Força a ser [null] no banco se vier vazio
                 Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email,
                 Telefone = string.IsNullOrWhiteSpace(dto.Telefone) ? null : dto.Telefone, 
-                Ativo = true
+                Ativo = true,
+                TurmaId = turmaId // 👉 Vincula o novo aluno à turma ativa!
             };
 
             if (dto.DisciplinasIds != null && dto.DisciplinasIds.Any())
@@ -160,14 +168,17 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> Update(Guid id, [FromBody] AlunoUpdateDTO dto)
         {
-            var aluno = await _context.Alunos.FindAsync(id);
-            if (aluno == null || !aluno.Ativo) 
-                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
 
-            // 👉 Verifica se o e-mail existe, mas ignora se for o e-mail do PRÓPRIO aluno
+            // 👉 Busca garantindo que o aluno pertence a esta turma
+            var aluno = await _context.Alunos.FirstOrDefaultAsync(a => a.Id == id && a.TurmaId == turmaId);
+            if (aluno == null || !aluno.Ativo) 
+                return NotFound(new { Message = "Aluno não encontrado nesta turma ou inativo." });
+
             if (!string.IsNullOrWhiteSpace(dto.Email))
             {
-                var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email.ToLower() == dto.Email.ToLower() && a.Id != id);
+                var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email != null && a.Email.ToLower() == dto.Email.ToLower() && a.Id != id);
                 if (emailEmUso)
                 {
                     return BadRequest(new { Message = "Este e-mail já está cadastrado para outro aluno." });
@@ -186,9 +197,12 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var aluno = await _context.Alunos.FindAsync(id);
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
+            var aluno = await _context.Alunos.FirstOrDefaultAsync(a => a.Id == id && a.TurmaId == turmaId);
             if (aluno == null || !aluno.Ativo) 
-                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
+                return NotFound(new { Message = "Aluno não encontrado nesta turma ou inativo." });
 
             aluno.Ativo = false;
             await _context.SaveChangesAsync();
@@ -200,13 +214,16 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> SincronizarMatriculas(Guid id, [FromBody] List<Guid> disciplinasIds)
         {
+            if (!Request.Headers.TryGetValue("X-Turma-Id", out var turmaIdStr) || !Guid.TryParse(turmaIdStr, out Guid turmaId))
+                return BadRequest(new { Message = "Turma não selecionada (Cabeçalho X-Turma-Id ausente)." });
+
             var aluno = await _context.Alunos
                 .Include(a => a.AlunoDisciplinas)
-                .FirstOrDefaultAsync(a => a.Id == id && a.Ativo);
+                .FirstOrDefaultAsync(a => a.Id == id && a.Ativo && a.TurmaId == turmaId); // 👉 Trava de segurança
 
             if (aluno == null)
             {
-                return NotFound(new { Message = "Aluno não encontrado ou inativo." });
+                return NotFound(new { Message = "Aluno não encontrado nesta turma ou inativo." });
             }
 
             var vinculosAtuais = aluno.AlunoDisciplinas.ToList();
@@ -227,7 +244,7 @@ namespace backend.Controllers
 
             foreach (var dId in paraAdicionar)
             {
-                var existeDisciplina = await _context.Disciplinas.AnyAsync(d => d.Id == dId);
+                var existeDisciplina = await _context.Disciplinas.AnyAsync(d => d.Id == dId && d.TurmaId == turmaId);
                 if (existeDisciplina)
                 {
                     _context.AlunoDisciplinas.Add(new AlunoDisciplina

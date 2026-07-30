@@ -12,8 +12,8 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260727224052_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260730190724_AdicionandoTurmas")]
+    partial class AdicionandoTurmas
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -91,10 +91,15 @@ namespace backend.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid>("TurmaId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Matricula")
                         .IsUnique();
+
+                    b.HasIndex("TurmaId");
 
                     b.ToTable("Alunos");
                 });
@@ -169,9 +174,14 @@ namespace backend.Migrations
                     b.Property<Guid>("ProfessorId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("TurmaId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProfessorId");
+
+                    b.HasIndex("TurmaId");
 
                     b.ToTable("Disciplinas");
                 });
@@ -228,6 +238,25 @@ namespace backend.Migrations
                         .IsUnique();
 
                     b.ToTable("RegistrosFrequencia");
+                });
+
+            modelBuilder.Entity("backend.Models.Turma", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Turmas");
                 });
 
             modelBuilder.Entity("backend.Models.Usuario", b =>
@@ -307,6 +336,17 @@ namespace backend.Migrations
                     b.Navigation("ResolvidoPor");
                 });
 
+            modelBuilder.Entity("backend.Models.Aluno", b =>
+                {
+                    b.HasOne("backend.Models.Turma", "Turma")
+                        .WithMany("Alunos")
+                        .HasForeignKey("TurmaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Turma");
+                });
+
             modelBuilder.Entity("backend.Models.AlunoDisciplina", b =>
                 {
                     b.HasOne("backend.Models.Aluno", "Aluno")
@@ -344,7 +384,15 @@ namespace backend.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("backend.Models.Turma", "Turma")
+                        .WithMany("Disciplinas")
+                        .HasForeignKey("TurmaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Professor");
+
+                    b.Navigation("Turma");
                 });
 
             modelBuilder.Entity("backend.Models.RegistroAtividade", b =>
@@ -392,6 +440,13 @@ namespace backend.Migrations
             modelBuilder.Entity("backend.Models.Disciplina", b =>
                 {
                     b.Navigation("AlunoDisciplinas");
+                });
+
+            modelBuilder.Entity("backend.Models.Turma", b =>
+                {
+                    b.Navigation("Alunos");
+
+                    b.Navigation("Disciplinas");
                 });
 #pragma warning restore 612, 618
         }

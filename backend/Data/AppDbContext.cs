@@ -19,6 +19,7 @@ namespace backend.Data
         }
 
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<Turma> Turmas { get; set; }
         public DbSet<Professor> Professores { get; set; }
         public DbSet<Aluno> Alunos { get; set; }
         public DbSet<RegistroFrequencia> RegistrosFrequencia { get; set; }
@@ -59,6 +60,13 @@ namespace backend.Data
                 entity.Property(e => e.AreaAtuacao).HasMaxLength(100);
             });
 
+            // Mapping for Turma
+            modelBuilder.Entity<Turma>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Nome).IsRequired().HasMaxLength(100);
+            });
+
             // Mapping for Aluno
             modelBuilder.Entity<Aluno>(entity =>
             {
@@ -69,6 +77,12 @@ namespace backend.Data
                 
                 // Impede matrículas duplicadas no banco
                 entity.HasIndex(a => a.Matricula).IsUnique();
+
+                // Adicione isso dentro das chaves do Aluno:
+                entity.HasOne(a => a.Turma)
+                      .WithMany(t => t.Alunos)
+                      .HasForeignKey(a => a.TurmaId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Mapping for AlunoDisciplina (N:N)

@@ -4,6 +4,7 @@ import { BookOpen, Users, UserSquare, BarChart, Bell, LogOut, GraduationCap, Clo
 import { AuthContext } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
+import { TurmaSelector } from './TurmaSelector'; // 👉 1. Importamos o novo componente aqui!
 
 export function Header() {
   // Puxamos também o token do AuthContext para ler a validade dele
@@ -18,7 +19,6 @@ export function Header() {
   const [tempoRestante, setTempoRestante] = useState<string>('');
   const [expirando, setExpirando] = useState(false);
 
-  // Efeito 1: Busca notificações (Seu código original)
   // Efeito 1: Busca notificações
   useEffect(() => {
     const fetchAlertas = async () => {
@@ -138,15 +138,24 @@ export function Header() {
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
-      {/* Logo e Título */}
-      <div className="flex items-center gap-3">
-        <div className="bg-gray-900 p-2 rounded-lg">
-          <GraduationCap className="text-white w-6 h-6" />
+      
+      {/* 👉 2. Adicionamos o seletor aqui, ao lado do Logo! */}
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-gray-900 p-2 rounded-lg">
+            <GraduationCap className="text-white w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-gray-900 leading-tight">Sistema Acadêmico</h1>
+            <p className="text-xs text-gray-500 hidden sm:block">Gestão de Cursos, Alunos e Professores</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg font-bold text-gray-900 leading-tight">Sistema Acadêmico</h1>
-          <p className="text-xs text-gray-500">Gestão de Cursos, Alunos e Professores</p>
-        </div>
+
+        {/* Linha divisória */}
+        <div className="hidden md:block w-px h-8 bg-gray-200"></div>
+
+        {/* O nosso novo botão de turmas! */}
+        <TurmaSelector />
       </div>
 
       {/* Menu Principal Dinâmico */}

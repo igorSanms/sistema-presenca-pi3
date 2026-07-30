@@ -6,25 +6,22 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace backend.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class AdicionandoTurmas : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Alunos",
+                name: "Turmas",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Matricula = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    Email = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
-                    Telefone = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    Nome = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     Ativo = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Alunos", x => x.Id);
+                    table.PrimaryKey("PK_Turmas", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -46,6 +43,29 @@ namespace backend.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Alunos",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Nome = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Matricula = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Email = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: true),
+                    Telefone = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    TurmaId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Ativo = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Alunos", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Alunos_Turmas_TurmaId",
+                        column: x => x.TurmaId,
+                        principalTable: "Turmas",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Disciplinas",
                 columns: table => new
                 {
@@ -55,11 +75,18 @@ namespace backend.Migrations
                     DataInicio = table.Column<DateOnly>(type: "date", nullable: false),
                     DataFim = table.Column<DateOnly>(type: "date", nullable: false),
                     Horarios = table.Column<string>(type: "text", nullable: false),
+                    TurmaId = table.Column<Guid>(type: "uuid", nullable: false),
                     Ativo = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Disciplinas", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Disciplinas_Turmas_TurmaId",
+                        column: x => x.TurmaId,
+                        principalTable: "Turmas",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Disciplinas_Usuarios_ProfessorId",
                         column: x => x.ProfessorId,
@@ -221,6 +248,11 @@ namespace backend.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Alunos_TurmaId",
+                table: "Alunos",
+                column: "TurmaId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Aulas_DisciplinaId",
                 table: "Aulas",
                 column: "DisciplinaId");
@@ -229,6 +261,11 @@ namespace backend.Migrations
                 name: "IX_Disciplinas_ProfessorId",
                 table: "Disciplinas",
                 column: "ProfessorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Disciplinas_TurmaId",
+                table: "Disciplinas",
+                column: "TurmaId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RegistrosAtividades_UsuarioId",
@@ -276,6 +313,9 @@ namespace backend.Migrations
 
             migrationBuilder.DropTable(
                 name: "Disciplinas");
+
+            migrationBuilder.DropTable(
+                name: "Turmas");
 
             migrationBuilder.DropTable(
                 name: "Usuarios");

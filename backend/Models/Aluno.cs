@@ -20,6 +20,10 @@ namespace backend.Models
         [MaxLength(20)]
         public string? Telefone { get; set; }
 
+        // Adicione estas duas linhas:
+        public Guid TurmaId { get; set; }
+        public Turma? Turma { get; set; }
+
         public bool Ativo { get; set; } = true;
 
         public ICollection<RegistroFrequencia> Registros { get; set; } = new List<RegistroFrequencia>();
