@@ -27,6 +27,24 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+
+            var hoje = DateOnly.FromDateTime(DateTime.Now);
+            var dataMinima = new DateOnly(2000, 1, 1); // Evita bugar com datas vazias (0001-01-01)
+
+            var disciplinasVencidas = await _context.Disciplinas
+                .Where(d => d.Ativo && d.DataFim > dataMinima && d.DataFim < hoje)
+                .ToListAsync();
+
+            if (disciplinasVencidas.Any())
+            {
+                foreach (var d in disciplinasVencidas)
+                {
+                    d.Ativo = false; // Desativa a disciplina
+                }
+                // Salva a alteração no banco de dados automaticamente
+                await _context.SaveChangesAsync();
+            }
+
             // Extrai o Perfil e o ID do usuário através do Token JWT (Claims)
             var perfil = User.FindFirst(ClaimTypes.Role)?.Value;
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
@@ -58,7 +76,8 @@ namespace backend.Controllers
                     ProfessorNome = d.Professor.Nome,
                     Horarios = d.Horarios,
                     DataInicio = d.DataInicio,
-                    DataFim = d.DataFim
+                    DataFim = d.DataFim,
+                    Ativo = d.Ativo 
                 })
                 .ToListAsync();
 
@@ -78,7 +97,8 @@ namespace backend.Controllers
                     ProfessorNome = d.Professor.Nome,
                     Horarios = d.Horarios,
                     DataInicio = d.DataInicio,
-                    DataFim = d.DataFim
+                    DataFim = d.DataFim,
+                    Ativo = d.Ativo
                 })
                 .FirstOrDefaultAsync(d => d.Id == id);
 
@@ -106,7 +126,8 @@ namespace backend.Controllers
                 ProfessorId = dto.ProfessorId,
                 Horarios = dto.Horarios,
                 DataInicio = dto.DataInicio,
-                DataFim = dto.DataFim
+                DataFim = dto.DataFim,
+                Ativo = true // 👉 Toda disciplina nova nasce ativada
             };
 
             _context.Disciplinas.Add(disciplina);
@@ -120,7 +141,8 @@ namespace backend.Controllers
                 ProfessorNome = professor.Nome,
                 Horarios = disciplina.Horarios,
                 DataInicio = disciplina.DataInicio,
-                DataFim = disciplina.DataFim
+                DataFim = disciplina.DataFim,
+                Ativo = disciplina.Ativo
             };
 
             return CreatedAtAction(nameof(GetById), new { id = disciplina.Id }, response);
@@ -150,6 +172,24 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // 👉 NOVA ROTA: Apenas inverte o status de Ativo para Inativo (e vice-versa)
+        [Authorize(Roles = "Coordenacao")]
+        [HttpPatch("{id}/toggle")]
+        public async Task<IActionResult> ToggleStatus(Guid id)
+        {
+            var disciplina = await _context.Disciplinas.FindAsync(id);
+            if (disciplina == null)
+            {
+                return NotFound(new { Message = "Disciplina não encontrada." });
+            }
+
+            disciplina.Ativo = !disciplina.Ativo; // Inverte o valor atual
+            await _context.SaveChangesAsync();
+
+            var statusStr = disciplina.Ativo ? "ativada" : "desativada";
+            return Ok(new { Message = $"Disciplina {statusStr} com sucesso.", Ativo = disciplina.Ativo });
         }
 
         [Authorize(Roles = "Coordenacao")]

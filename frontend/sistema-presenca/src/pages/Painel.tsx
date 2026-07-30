@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, ChevronLeft, ChevronRight, List } from 'lucide-react';
 import { Button } from '../components/Button';
 import { DiaSemana } from '../components/DiaSemana';
 import { AulaCard } from '../components/AulaCard';
@@ -15,6 +15,7 @@ interface DisciplinaResponse {
   horarios: string;
   dataInicio?: string;
   dataFim?: string;
+  ativo: boolean;
 }
 
 export function Painel() {
@@ -43,6 +44,7 @@ export function Painel() {
   }, []);
 
   const disciplinasFiltradas = disciplinas.filter(disciplina => 
+    disciplina.ativo &&
     disciplina.nome && disciplina.nome.toLowerCase().includes(termoBusca.toLowerCase())
   );
 
@@ -53,32 +55,33 @@ export function Painel() {
 
     disciplinasFiltradas.forEach(d => {
       if (!d.horarios) return;
-      // Calculamos se a disciplina está dentro do semestre letivo, 
-      // mas removemos o "return" que escondia ela da tela!
-      let dentroDoSemestre = true;
+      
+      // 1. Verificação do Período Letivo
       if (d.dataInicio && d.dataFim && !d.dataInicio.startsWith('0001')) {
         const inicioStr = d.dataInicio.split('T')[0];
         const fimStr = d.dataFim.split('T')[0];
         
+        // Se a data do card (dataISO) for antes do início ou depois do fim,
+        // interrompe aqui e NÃO mostra essa disciplina neste dia.
         if (dataISO < inicioStr || dataISO > fimStr) {
-          dentroDoSemestre = false;
+          return; 
         }
       }
 
+      // 2. Verificação do Dia da Semana e Extração do Horário
       try {
         const parsed = JSON.parse(d.horarios);
         if (Array.isArray(parsed)) {
           parsed.forEach(hStr => {
             if (typeof hStr === 'string' && hStr.startsWith(dia)) {
               const horario = hStr.replace(dia, '').trim();
-              // Guardamos a flag "ativaNestaData" caso o AulaCard precise dela no futuro
-              aulas.push({ ...d, horarioRender: horario, ativaNestaData: dentroDoSemestre });
+              aulas.push({ ...d, horarioRender: horario });
             }
           });
         }
       } catch {
         if (typeof d.horarios === 'string' && d.horarios.includes(dia)) {
-          aulas.push({ ...d, horarioRender: d.horarios, ativaNestaData: dentroDoSemestre });
+          aulas.push({ ...d, horarioRender: d.horarios });
         }
       }
     });
@@ -142,8 +145,20 @@ export function Painel() {
         </div>
         
         {isCoordenacao && (
-          <div className="w-44">
-            <Button variant="secondary" onClick={() => navigate('/disciplinas/nova')} className="bg-[#0A0F1C] hover:bg-gray-800 text-white w-full py-2.5 rounded-lg font-medium text-sm flex justify-center items-center transition-all">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/disciplinas')} 
+              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-2.5 px-4 rounded-lg font-medium text-sm flex justify-center items-center transition-all"
+            >
+              <List className="w-4 h-4 mr-2" /> Ver Disciplinas
+            </Button>
+            
+            <Button 
+              variant="secondary" 
+              onClick={() => navigate('/disciplinas/nova')} 
+              className="bg-[#0A0F1C] hover:bg-gray-800 text-white py-2.5 px-4 rounded-lg font-medium text-sm flex justify-center items-center transition-all whitespace-nowrap"
+            >
               <Plus className="w-4 h-4 mr-2" /> Nova Disciplina
             </Button>
           </div>

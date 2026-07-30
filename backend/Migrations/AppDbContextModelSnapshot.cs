@@ -71,7 +71,6 @@ namespace backend.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
@@ -145,6 +144,9 @@ namespace backend.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("boolean");
 
                     b.Property<DateOnly>("DataFim")
                         .HasColumnType("date");

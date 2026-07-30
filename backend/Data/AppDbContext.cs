@@ -65,7 +65,7 @@ namespace backend.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Nome).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Matricula).IsRequired().HasMaxLength(50);
-                entity.Property(e => e.Email).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.Email).HasMaxLength(150);
                 
                 // Impede matrículas duplicadas no banco
                 entity.HasIndex(a => a.Matricula).IsUnique();

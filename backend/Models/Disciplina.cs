@@ -25,5 +25,8 @@ namespace backend.Models
 
         // Armazena os horários da disciplina (como JSON ou texto simples)
         public string Horarios { get; set; } = string.Empty;
+
+        // NOVO CAMPO: Controla se a disciplina está ativa ou desativada no sistema
+        public bool Ativo { get; set; } = true;
     }
 }

@@ -17,6 +17,7 @@ import { Professores } from '../pages/Professores';
 import { NovoProfessor } from '../pages/NovoProfessor';
 import { Relatorios } from '../pages/relatorios/Relatorios';
 import { EditarProfissional } from '../pages/EditarProfissional';
+import { Disciplinas } from '../pages/Disciplinas';
 
 export function AppRoutes() {
   return (
@@ -42,6 +43,7 @@ export function AppRoutes() {
             
             {/* Rotas exclusivas da Coordenação */}
             <Route element={<ProtectedRoute allowedRoles={['Coordenacao']} />}>
+              <Route path="/disciplinas" element={<Disciplinas />} />
               <Route path="/disciplinas/nova" element={<NovaDisciplina />} />
               <Route path="/disciplinas/editar/:id" element={<EditarDisciplina />} />
               <Route path="/professores/editar/:id" element={<EditarProfissional />} />

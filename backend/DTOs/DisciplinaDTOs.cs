@@ -50,5 +50,8 @@ namespace backend.DTOs
         public string Horarios { get; set; } = string.Empty;
         public DateOnly DataInicio { get; set; }
         public DateOnly DataFim { get; set; }
+        
+        //  Retorna o status para o React saber se deve mostrar na grade ou não
+        public bool Ativo { get; set; }
     }
 }

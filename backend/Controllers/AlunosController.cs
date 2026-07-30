@@ -112,7 +112,7 @@ namespace backend.Controllers
         [Authorize(Roles = "Coordenacao")]
         public async Task<IActionResult> Create([FromBody] AlunoCreateDTO dto)
         {
-            // 👉 NOVA REGRA: Verifica se o e-mail já existe (ignorando letras maiúsculas/minúsculas)
+
             if (!string.IsNullOrWhiteSpace(dto.Email))
             {
                 var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email.ToLower() == dto.Email.ToLower());
@@ -133,8 +133,9 @@ namespace backend.Controllers
                 Id = Guid.NewGuid(),
                 Nome = dto.Nome,
                 Matricula = matriculaAuto,
-                Email = dto.Email,
-                Telefone = dto.Telefone, 
+                // 👉 CORREÇÃO AQUI: Força a ser [null] no banco se vier vazio
+                Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email,
+                Telefone = string.IsNullOrWhiteSpace(dto.Telefone) ? null : dto.Telefone, 
                 Ativo = true
             };
 
@@ -163,7 +164,7 @@ namespace backend.Controllers
             if (aluno == null || !aluno.Ativo) 
                 return NotFound(new { Message = "Aluno não encontrado ou inativo." });
 
-            // 👉 NOVA REGRA: Verifica se o e-mail existe, mas ignora se for o e-mail do PRÓPRIO aluno
+            // 👉 Verifica se o e-mail existe, mas ignora se for o e-mail do PRÓPRIO aluno
             if (!string.IsNullOrWhiteSpace(dto.Email))
             {
                 var emailEmUso = await _context.Alunos.AnyAsync(a => a.Email.ToLower() == dto.Email.ToLower() && a.Id != id);
@@ -174,8 +175,8 @@ namespace backend.Controllers
             }
 
             aluno.Nome = dto.Nome;
-            aluno.Email = dto.Email;
-            aluno.Telefone = dto.Telefone; 
+            aluno.Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email;
+            aluno.Telefone = string.IsNullOrWhiteSpace(dto.Telefone) ? null : dto.Telefone; 
 
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Aluno atualizado com sucesso." });
