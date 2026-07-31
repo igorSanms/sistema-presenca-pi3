@@ -8,7 +8,6 @@ interface AlunoChamada {
   alunoId: string;
   nome: string;
   status: 0 | 1 | 2 | null;
-  observacao: string;
 }
 
 export function Chamada() {
@@ -43,16 +42,33 @@ export function Chamada() {
           const frequenciaResponse = await api.get('/Frequencia', {
             params: { data: dataAula } 
           });
-          frequenciaData = frequenciaResponse.data || [];
+          
+          const dados = frequenciaResponse.data;
+          // Garante que frequenciaData receba o array correto dependendo da estrutura que o C# devolve
+          if (Array.isArray(dados)) {
+            frequenciaData = dados;
+          } else if (dados && Array.isArray(dados.registros)) {
+            frequenciaData = dados.registros;
+          } else if (dados && Array.isArray(dados.alunos)) {
+            frequenciaData = dados.alunos;
+          }
         } catch (err: any) {
           console.log('Nenhuma chamada anterior encontrada. Iniciando lista limpa.');
         }
 
-        // Se já tiver dados, bloqueia a tela informando que a chamada já foi feita
-        if (frequenciaData.length > 0) {
+        // TRAVA INTELIGENTE: Verifica se na lista de frequências existe alguma marcação real.
+        const temMarcacaoReal = frequenciaData.some((f: any) => {
+           const status = f.status !== undefined ? f.status : f.Status;
+           return status === 0 || status === 1 || status === 2 || status === 'Presente' || status === 'Falta' || status === 'Justificada';
+        });
+
+        // Só bloqueia a tela informando que a chamada já foi feita se tiver marcações reais
+        if (frequenciaData.length > 0 && temMarcacaoReal) {
           setChamadaRealizada(true);
         } else {
           setChamadaRealizada(false);
+          // Limpa a array caso o backend tenha retornado lixo ou uma estrutura vazia, para a tela nascer virgem
+          frequenciaData = []; 
         }
 
         // 3. Faz o Merge visual
@@ -75,8 +91,7 @@ export function Chamada() {
           return {
             alunoId: baseId,
             nome: baseNome,
-            status: statusConvertido,
-            observacao: (registro?.observacao || registro?.Observacao) || ''
+            status: statusConvertido
           };
         });
 
@@ -101,13 +116,6 @@ export function Chamada() {
     ));
   };
 
-  const handleObsChange = (id: string, obs: string) => {
-    if (chamadaRealizada) return; // Trava de segurança extra
-    setAlunos(prev => prev.map(aluno => 
-      aluno.alunoId === id ? { ...aluno, observacao: obs } : aluno
-    ));
-  };
-
   const handleSave = async () => {
     if (chamadaRealizada) return;
     
@@ -118,8 +126,7 @@ export function Chamada() {
         data: dataAula, 
         alunos: alunos.map(a => ({
           alunoId: a.alunoId,
-          status: a.status === 1 ? 1 : a.status === 2 ? 2 : 0, 
-          observacao: a.observacao || ''
+          status: a.status === 1 ? 1 : a.status === 2 ? 2 : 0
         }))
       };
 
@@ -204,12 +211,11 @@ export function Chamada() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase tracking-wider text-gray-600 font-bold">
-                  <th className="py-3 px-4 w-28">Matrícula</th>
-                  <th className="py-3 px-4 w-48">Nome do Aluno</th>
-                  <th className="py-3 px-4 w-24 text-center">Ausente</th>
+                  <th className="py-3 px-4 w-32">Matrícula</th>
+                  <th className="py-3 px-4">Nome do Aluno</th>
+                  <th className="py-3 px-4 w-32 text-center">Ausente</th>
                   <th className="py-3 px-4 w-32 text-center">Justificativa</th>
                   <th className="py-3 px-4 w-32 text-center">Status</th>
-                  <th className="py-3 px-4 w-64">Observações</th>
                 </tr>
               </thead>
               <tbody className="text-sm text-gray-800">
@@ -248,17 +254,6 @@ export function Chamada() {
                       ) : (
                         <span className="bg-green-100 text-green-700 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">Presente</span>
                       )}
-                    </td>
-
-                    <td className="py-4 px-4">
-                      <input 
-                        type="text" 
-                        placeholder={chamadaRealizada ? "Sem observações adicionais" : "Adicionar observação..."}
-                        value={aluno.observacao || ''}
-                        onChange={(e) => handleObsChange(aluno.alunoId, e.target.value)}
-                        disabled={chamadaRealizada}
-                        className={`w-full bg-gray-100 border-transparent rounded-md px-3 py-2 text-xs transition-all ${chamadaRealizada ? 'cursor-not-allowed text-gray-500' : 'focus:bg-white focus:border-gray-300 focus:ring-1 focus:ring-blue-500'}`}
-                      />
                     </td>
                   </tr>
                 ))}

@@ -31,6 +31,8 @@ export function NovaTurmaModal({ isOpen, onClose }: NovaTurmaModalProps) {
       // 4. Limpa e fecha
       setNome('');
       onClose();
+      window.location.reload();
+
     } catch (error) {
       console.error('Erro ao criar turma:', error);
       alert('Não foi possível criar a turma. Tente novamente.');
@@ -84,9 +86,9 @@ export function NovaTurmaModal({ isOpen, onClose }: NovaTurmaModalProps) {
           <button
             onClick={handleCreate}
             disabled={loading || !nome.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-gray-600 border border-transparent rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-white bg-black border border-transparent rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
-            {loading ? 'Criando...' : '+ Criar Turma'}
+            {loading ? 'Criando...' : 'Criar Turma'}
           </button>
         </div>
       </div>
