@@ -12,7 +12,7 @@ export function Button({ children, variant = 'primary', ...rest }: ButtonProps) 
     // Azul claro do Figma
     baseClass += " bg-[#78A8D1] hover:bg-[#6393BC] text-white shadow-sm"; 
   } else if (variant === 'secondary') {
-    // Botão preto da tela de recuperar senha
+    //Botão preto da tela de recuperar senha
     baseClass += " bg-black hover:bg-gray-800 text-white shadow-sm";
   } else if (variant === 'outline') {
     // Botão com borda da tela de confirmação
