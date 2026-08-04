@@ -5,7 +5,7 @@ import { AlterarSenha } from '../pages/AlterarSenha';
 import { PrivateRoute } from './PrivateRoute';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DefaultLayout } from '../layouts/DefaultLayout';
-import { Painel } from '../pages/Painel'; // Vamos criar este arquivo no próximo passo
+import { Painel } from '../pages/Painel'; 
 import { NovaDisciplina } from '../pages/NovaDisciplina';
 import { EditarDisciplina } from '../pages/EditarDisciplina';
 import { Chamada } from '../pages/Chamada';
@@ -18,6 +18,7 @@ import { NovoProfessor } from '../pages/NovoProfessor';
 import { Relatorios } from '../pages/relatorios/Relatorios';
 import { EditarProfissional } from '../pages/EditarProfissional';
 import { Disciplinas } from '../pages/Disciplinas';
+import { SelecionarTurma } from '../pages/SelecionarTurma';
 
 export function AppRoutes() {
   return (
@@ -28,9 +29,13 @@ export function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/confirmacao" element={<ConfirmacaoEnvio />} />
         <Route path="/alterar-senha" element={<AlterarSenha />} />
-
+        
         {/* Rotas Privadas (Só entra com Token) */}
         <Route element={<PrivateRoute />}>
+          
+          {/* ROTA NOVA: Fica protegida, mas fora do Layout para não exibir o menu do cabeçalho ainda */}
+          <Route path="/selecionar-turma" element={<SelecionarTurma />} />
+
           {/* Todas as rotas aqui dentro herdam o Header por causa do DefaultLayout */}
           <Route element={<DefaultLayout />}>
             <Route path="/painel" element={<Painel />} />

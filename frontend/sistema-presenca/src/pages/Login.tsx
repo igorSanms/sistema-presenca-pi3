@@ -44,7 +44,7 @@ export function Login() {
       signIn(resposta.token, resposta.perfil);
 
       // Redirecionamos para a tela interna
-      navigate('/painel');
+      navigate('/selecionar-turma');
 
       // Sucesso! Vamos imprimir no console para ver o que o backend nos devolveu (ex: Token)
       console.log('Retorno da API:', resposta);

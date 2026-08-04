@@ -55,5 +55,48 @@ namespace backend.Controllers
                 Ativo = turma.Ativo
             });
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTurma(Guid id, [FromBody] TurmaCreateDTO dto)
+        {
+            var turma = await _context.Turmas.FindAsync(id);
+            if (turma == null || !turma.Ativo) 
+                return NotFound(new { Message = "Turma não encontrada." });
+
+            turma.Nome = dto.Nome;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Turma atualizada com sucesso." });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTurma(Guid id)
+        {
+            var turma = await _context.Turmas.FindAsync(id);
+            if (turma == null || !turma.Ativo) 
+                return NotFound(new { Message = "Turma não encontrada." });
+
+            // Exclusão Lógica: Inativa a Turma
+            turma.Ativo = false;
+
+            // Inativa todos os Alunos que pertencem a esta turma
+            var alunos = await _context.Alunos.Where(a => a.TurmaId == id).ToListAsync();
+            foreach (var aluno in alunos)
+            {
+                aluno.Ativo = false;
+            }
+
+            // Inativa todas as Disciplinas que pertencem a esta turma
+            var disciplinas = await _context.Disciplinas.Where(d => d.TurmaId == id).ToListAsync();
+            foreach (var disciplina in disciplinas)
+            {
+                disciplina.Ativo = false;
+            }
+
+            // Professores não são tocados! Eles continuam no banco de dados.
+
+            await _context.SaveChangesAsync();
+            return Ok(new { Message = "Turma e seus registros foram excluídos com sucesso." });
+        }
     }
 }
