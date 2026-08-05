@@ -8,12 +8,17 @@ import { NovaTurmaModal } from '../components/NovaTurmaModal';
 
 export function SelecionarTurma() {
   const { turmas, setTurmaAtiva, carregarTurmas } = useContext(TurmaContext);
-  const { nome, signOut } = useContext(AuthContext);
+  
+  //  extração do "perfil" aqui
+  const { nome, perfil, signOut } = useContext(AuthContext); 
   const navigate = useNavigate();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [novoNome, setNovoNome] = useState('');
+
+  // variável de controle
+  const isCoordenacao = perfil === 'Coordenacao';
 
   // Atualiza a lista sempre que entra nessa tela
   useEffect(() => {
@@ -67,7 +72,11 @@ export function SelecionarTurma() {
       <div className="w-full max-w-4xl flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Olá, {nome || 'Usuário'}!</h1>
-          <p className="text-gray-600 mt-1">Selecione uma turma para acessar o sistema ou crie uma nova.</p>
+          <p className="text-gray-600 mt-1">
+            {isCoordenacao 
+              ? 'Selecione uma turma para acessar o sistema ou crie uma nova.' 
+              : 'Selecione a sua turma para acessar o sistema.'}
+          </p>
         </div>
         <button onClick={handleLogout} className="flex items-center gap-2 text-gray-500 hover:text-red-600 transition-colors font-medium">
           <LogOut className="w-5 h-5" /> Sair
@@ -106,27 +115,32 @@ export function SelecionarTurma() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-auto">
-                  <button onClick={() => handleIniciarEdicao(turma)} className="text-gray-400 hover:text-blue-600 transition-colors" title="Editar Nome">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleExcluirTurma(turma.id, turma.nome)} className="text-gray-400 hover:text-red-600 transition-colors" title="Excluir Turma">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {/* 👉 3. Esconde os botões de Editar e Excluir se for Professor */}
+                {isCoordenacao && (
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 mt-auto">
+                    <button onClick={() => handleIniciarEdicao(turma)} className="text-gray-400 hover:text-blue-600 transition-colors" title="Editar Nome">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleExcluirTurma(turma.id, turma.nome)} className="text-gray-400 hover:text-red-600 transition-colors" title="Excluir Turma">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
         ))}
 
-        {/* Card de Adicionar Nova Turma */}
-        <button 
-          onClick={() => setModalOpen(true)}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center h-40 text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all gap-2"
-        >
-          <Plus className="w-8 h-8" />
-          <span className="font-bold">Criar Nova Turma</span>
-        </button>
+        {/* Esconde o botão de Criar Nova Turma se for Professor */}
+        {isCoordenacao && (
+          <button 
+            onClick={() => setModalOpen(true)}
+            className="border-2 border-dashed border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center h-40 text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 transition-all gap-2"
+          >
+            <Plus className="w-8 h-8" />
+            <span className="font-bold">Criar Nova Turma</span>
+          </button>
+        )}
       </div>
 
       <NovaTurmaModal isOpen={modalOpen} onClose={() => setModalOpen(false)} />

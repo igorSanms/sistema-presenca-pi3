@@ -38,13 +38,10 @@ namespace backend.Controllers
             var query = _context.Alunos
                 .Include(a => a.AlunoDisciplinas)
                 .ThenInclude(ad => ad.Disciplina)
-                .Where(a => a.Ativo && a.TurmaId == turmaId) // 👉 Filtra pela turma
+                .Where(a => a.Ativo && a.TurmaId == turmaId) // 👉 Filtra EXCLUSIVAMENTE pela turma
                 .AsQueryable();
 
-            if (perfil == "Professor")
-            {
-                query = query.Where(a => a.AlunoDisciplinas.Any(ad => ad.Disciplina.ProfessorId == userId));
-            }
+            // O bloqueio antigo do professor foi removido daqui! Agora ele vê todos da turma.
 
             if (disciplinaId.HasValue)
             {
